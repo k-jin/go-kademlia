@@ -22,6 +22,7 @@ const (
 type Kademlia struct {
 	NodeID      ID
 	SelfContact Contact
+	KBuckets map[int]KBucket
 }
 
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
@@ -40,8 +41,8 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	if err != nil {
 		return nil
 	}
-	s.HandleHTTP(rpc.DefaultRPCPath+hostname+port,
-		rpc.DefaultDebugPath+hostname+port)
+	s.HandleHTTP(rpc.DefaultRPCPath + port,
+		rpc.DefaultDebugPath + port)
 	l, err := net.Listen("tcp", laddr)
 	if err != nil {
 		log.Fatal("Listen: ", err)
@@ -84,6 +85,14 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	if nodeId == k.SelfContact.NodeID {
 		return &k.SelfContact, nil
 	}
+	for _, bucket_id := range k.KBuckets {
+		bucket = k.KBuckets[bucket_id]
+		for _, contact := range bucket.Contacts {
+			if contact.NodeID == ID {
+				return contact, nil
+			}
+		}
+	}
 	return nil, &ContactNotFoundError{nodeId, "Not found"}
 }
 
@@ -97,6 +106,7 @@ func (e *CommandFailed) Error() string {
 
 func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
+	ping := PingMessage{k.SelfContact, NewRandomID()}
 	return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 }
