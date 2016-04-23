@@ -22,7 +22,7 @@ const (
 type Kademlia struct {
 	NodeID      ID
 	SelfContact Contact
-	KBuckets map[int]KBucket
+	KBuckets map[int]KBuckets
 }
 
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
@@ -88,7 +88,7 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	for _, bucket_id := range k.KBuckets {
 		bucket = k.KBuckets[bucket_id]
 		for _, contact := range bucket.Contacts {
-			if contact.NodeID == ID {
+			if contact.NodeID == nodeId {
 				return contact, nil
 			}
 		}
@@ -104,11 +104,42 @@ func (e *CommandFailed) Error() string {
 	return fmt.Sprintf("%s", e.msg)
 }
 
+// host - IP address of destination
+// port - of destination
+/*
+	1. Send ping to destination
+	2. Wait for pong
+		a. If response
+			1. Check if it exists, update if so
+			2. Add if not full
+			3. Drop if full
+		b. Do nothing
+*/
 func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
+	address := fmt.Sprintf("%s:%v", host.String(), port)
+	portStr := fmt.Sprintf(port)
+	client, err := rpc.DialHTTPPath("tcp", address, portStr)
+	if err != nil {
+		log.Fatal("DialHTTP: ", err)
+	}
+	log.Printf("Pinging initial peer\n")
+
 	ping := PingMessage{k.SelfContact, NewRandomID()}
+	var pong PongMessage
+	err = client.Call("Ping", &ping, &pong)
+	if err != nil {
+		log.Fatal("client.call error: ", err)
+	}
+	//TODO: Update the k-buckets contacts order
+
 	return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
+}
+
+
+func (k *Kademlia) Update() error {
+
 }
 
 func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
