@@ -44,6 +44,12 @@ func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 	pong.Sender = k.kademlia.SelfContact
 
 	// TODO: Update contact, etc
+	err = k.kademlia.Update(ping.Sender)
+
+	if err != nil {
+		return nil, &CommandFailed{
+		"Update failed in Ping" + fmt.Sprintf("ping message: %v \n pong message: %v", ping, pong)}
+	}
 	return nil
 }
 
