@@ -30,7 +30,7 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.NodeID = nodeID
 
 	// TODO: Initialize other state here as you add functionality.
-
+	k.KBuckets = make(map[int]KBucket)
 	// Set up RPC server
 	// NOTE: KademliaRPC is just a wrapper around Kademlia. This type includes
 	// the RPC functions.
@@ -85,12 +85,12 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	if nodeId == k.SelfContact.NodeID {
 		return &k.SelfContact, nil
 	}
-	for _, bucket_id := range k.KBuckets {
-		bucket = k.KBuckets[bucket_id]
-		for _, contact := range bucket.Contacts {
-			if contact.NodeID == nodeId {
-				return contact, nil
-			}
+
+	bucket_id := nodeId.Xor(k.SelfContact.NodeID).PrefixLen()
+	bucket := k.KBuckets[bucket_id]
+	for _, contact := range bucket.Contacts {
+		if contact.NodeID == nodeId {
+			return contact, nil
 		}
 	}
 	return nil, &ContactNotFoundError{nodeId, "Not found"}
