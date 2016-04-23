@@ -30,7 +30,7 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.NodeID = nodeID
 
 	// TODO: Initialize other state here as you add functionality.
-
+	k.KBuckets = make(map[int]KBucket)
 	// Set up RPC server
 	// NOTE: KademliaRPC is just a wrapper around Kademlia. This type includes
 	// the RPC functions.
@@ -85,12 +85,11 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	if nodeId == k.SelfContact.NodeID {
 		return &k.SelfContact, nil
 	}
-	for _, bucket_id := range k.KBuckets {
-		bucket = k.KBuckets[bucket_id]
-		for _, contact := range bucket.Contacts {
-			if contact.NodeID == ID {
-				return contact, nil
-			}
+	bucket_id := nodeId.Xor(k.SelfContact.NodeID).PrefixLen()
+	bucket := k.KBuckets[bucket_id]
+	for _, contact := range bucket.Contacts {
+		if contact.NodeID == nodeId {
+			return contact, nil
 		}
 	}
 	return nil, &ContactNotFoundError{nodeId, "Not found"}
@@ -107,6 +106,11 @@ func (e *CommandFailed) Error() string {
 func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
 	ping := PingMessage{k.SelfContact, NewRandomID()}
+	//Send ping
+	// for {
+	// 	//Listen for pong
+	// 	//if pong update
+	// }
 	return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 }
