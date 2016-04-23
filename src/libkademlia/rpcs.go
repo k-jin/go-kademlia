@@ -6,6 +6,7 @@ package libkademlia
 
 import (
 	"net"
+	"fmt"
 )
 
 type KademliaRPC struct {
@@ -40,14 +41,14 @@ type PongMessage struct {
 func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 	// TODO: Finish implementation
 	pong.MsgID = CopyID(ping.MsgID)
-	// Specify the sender
+	// Specify the sender=
 	pong.Sender = k.kademlia.SelfContact
 
 	// TODO: Update contact, etc
-	err = k.kademlia.Update(ping.Sender)
+	err := k.kademlia.Update(&ping.Sender)
 
 	if err != nil {
-		return nil, &CommandFailed{
+		return &CommandFailed{
 		"Update failed in Ping" + fmt.Sprintf("ping message: %v \n pong message: %v", ping, pong)}
 	}
 	return nil

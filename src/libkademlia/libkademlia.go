@@ -22,7 +22,7 @@ const (
 type Kademlia struct {
 	NodeID      ID
 	SelfContact Contact
-	KBuckets map[int]KBuckets
+	KBuckets map[int]KBucket
 }
 
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
@@ -79,18 +79,18 @@ func (k *Kademlia) Update(contact *Contact) error {
 	bucket_id := contact.NodeID.Xor(k.SelfContact.NodeID).PrefixLen()
 	// Is this a deep or shallow copy
 	bucket := k.KBuckets[bucket_id]
-	_, findErr = k.FindContact(contact.NodeID)
+	_, findErr := k.FindContact(contact.NodeID)
 	if findErr != nil {
 		// did not find contact
 		if len(bucket.Contacts) < 20 {
-			bucket.Contacts = append(bucket.Contacts, contact)
+			bucket.Contacts = append(bucket.Contacts, *contact)
 		} else {
 			oldContact := bucket.Contacts[0]
 			_, err := k.DoPing(oldContact.Host, oldContact.Port)
 			if err != nil{
 				// node did not respond
 				bucket.Contacts = bucket.Contacts[1:]
-				bucket.Contacts = append(bucket.Contacts, contact)
+				bucket.Contacts = append(bucket.Contacts, *contact)
 			} else {
 				// node responded
 				currContact := bucket.Contacts[0]
@@ -102,7 +102,7 @@ func (k *Kademlia) Update(contact *Contact) error {
 		// found contact
 		for i, bucketContact := range bucket.Contacts {
 			if contact.NodeID == bucketContact.NodeID {
-				bucket.Contacts = append(bucket.Contacts[:i], bucket.Contacts[i+1:])
+				bucket.Contacts = append(bucket.Contacts[:i], bucket.Contacts[i+1:]...)
 				bucket.Contacts = append(bucket.Contacts, bucketContact)
 				break
 			}
@@ -135,7 +135,7 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	bucket := k.KBuckets[bucket_id]
 	for _, contact := range bucket.Contacts {
 		if contact.NodeID == nodeId {
-			return contact, nil
+			return &contact, nil
 		}
 	}
 	return nil, &ContactNotFoundError{nodeId, "Not found"}
@@ -163,7 +163,7 @@ func (e *CommandFailed) Error() string {
 func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
 	address := fmt.Sprintf("%s:%v", host.String(), port)
-	portStr := fmt.Sprintf(port)
+	portStr := fmt.Sprintf("%v", port)
 	client, err := rpc.DialHTTPPath("tcp", address, portStr)
 	if err != nil {
 		return nil, &CommandFailed{
@@ -178,12 +178,12 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	} else {
-		err = k.Update(pong.Sender)
+		err = k.Update(&pong.Sender)
 		if err != nil {
 			return nil, &CommandFailed{
 			"Update failed in DoPing: " + fmt.Sprintf("%s:%v", host.String(), port)}
 		}
-		return pong.Sender, nil
+		return &pong.Sender, nil
 	}
 }
 
