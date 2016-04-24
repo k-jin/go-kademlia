@@ -71,6 +71,12 @@ func main() {
 	log.Printf("ping msgID: %s\n", ping.MsgID.AsString())
 	log.Printf("pong msgID: %s\n\n", pong.MsgID.AsString())
 
+
+	log.Printf("ping contact: %s\n", ping.Sender.Host)
+	log.Printf(port)
+	log.Printf(firstPeerStr)
+	// kadem.DoPing()
+
 	in := bufio.NewReader(os.Stdin)
 	quit := false
 	for !quit {

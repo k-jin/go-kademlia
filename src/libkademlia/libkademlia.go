@@ -166,6 +166,7 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	portStr := fmt.Sprintf("%v", port)
 	client, err := rpc.DialHTTPPath("tcp", address, portStr)
 	if err != nil {
+		log.Printf("DialHTTPPath err")
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	}
@@ -173,13 +174,15 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 
 	ping := PingMessage{k.SelfContact, NewRandomID()}
 	var pong PongMessage
-	err = client.Call("Ping", &ping, &pong)
+	err = client.Call("KademliaRPC.Ping", &ping, &pong)
 	if err != nil {
+		log.Printf("cliet.Call err")
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	} else {
 		err = k.Update(&pong.Sender)
 		if err != nil {
+			log.Printf("Update err")
 			return nil, &CommandFailed{
 			"Update failed in DoPing: " + fmt.Sprintf("%s:%v", host.String(), port)}
 		}
