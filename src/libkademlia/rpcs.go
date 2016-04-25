@@ -7,6 +7,7 @@ package libkademlia
 import (
 	"net"
 	"fmt"
+	"log"
 )
 
 type KademliaRPC struct {
@@ -46,7 +47,7 @@ func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 
 	// TODO: Update contact, etc
 	err := k.kademlia.Update(&ping.Sender)
-
+	log.Printf("in KademliaRPC.Ping")
 	if err != nil {
 		return &CommandFailed{
 		"Update failed in Ping" + fmt.Sprintf("ping message: %v \n pong message: %v", ping, pong)}
