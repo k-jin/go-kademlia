@@ -72,18 +72,20 @@ type StoreResult struct {
 func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 	// TODO: Implement.
 	res.MsgID = req.MsgID
+	fmt.Printf("Original Value Table \n")
 	for k, v := range k.kademlia.ValueTable {
-		fmt.Printf("%v:%v", k, v)
+		fmt.Printf("%v:%v\n", k, v)
 	}
-	err := k.kademlia.Update(req.Sender)
+	err := k.kademlia.Update(&req.Sender)
 	if err != nil {
 		fmt.Printf("Store broke ", err)
 		res.Err = err
 		return err
 	}
 	k.kademlia.ValueTable[req.Key] = req.Value
+	fmt.Printf("Updated Value Table \n")
 	for k, v := range k.kademlia.ValueTable {
-		fmt.Printf("%v:%v", k, v)
+		fmt.Printf("%v:%v\n", k, v)
 	}
 	res.Err = nil
 	return nil
@@ -113,7 +115,12 @@ func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 			"Update failed in FindNode " }
 	}
 	res.MsgID = CopyID(req.MsgID)
-	res.Nodes = make([]Contact, 20, 20)
+
+	nodes, err :=  k.kademlia.NearestHelper(req.NodeID)
+	if err!=nil {
+		return &CommandFailed{ " FindNode failed"}
+	}
+	res.Nodes = nodes
 	return nil
 }
 
@@ -150,6 +157,8 @@ func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) erro
 		return &CommandFailed{
 		"Update failed FindValue"}
 	}
+	//res.Nodes = NearestHelper(req.NodeID)
+
 	return nil	
 
 }
