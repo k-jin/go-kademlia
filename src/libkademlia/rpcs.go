@@ -22,7 +22,6 @@ type Contact struct {
 
 type KBucket struct {
 	Contacts []Contact
-	Size int
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -91,6 +90,12 @@ type FindNodeResult struct {
 
 func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	// TODO: Implement.
+	err := k.kademlia.Update(&req.Sender)
+	if err != nil {
+		return &CommandFailed{
+			"Update failed in FindNode: " + err}
+	}
+	res.MsgID = CopyID(req.MsgID)
 	return nil
 }
 
