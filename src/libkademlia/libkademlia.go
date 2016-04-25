@@ -312,8 +312,13 @@ func (k *Kademlia) NearestHelper(targetKey ID) (contacts []Contact, err error) {
 }
 
 func (k *Kademlia) LocalFindValue(searchKey ID) ([]byte, error) {
-	// TODO: Implement
-	return []byte(""), &CommandFailed{"Not implemented"}
+	value := k.ValueTable[searchKey]
+	if value == nil {
+		return nil, &CommandFailed{
+		"Unable to find value LocalFindValue"}
+	} else {
+		return value, nil
+	}
 }
 
 // For project 2!
