@@ -114,7 +114,21 @@ type FindValueResult struct {
 
 func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) error {
 	// TODO: Implement.
-	return nil
+
+	// the key B is the the seatch key 
+
+	res.MsgID = CopyID(req.MsgID)
+	req.Sender = k.kademlia.SelfContact
+
+	// TODO: Update contact, etc
+	err := k.kademlia.Update(&req.Sender)
+
+	if err != nil {
+		return &CommandFailed{
+		"Update failed FindValue"}
+	}
+	return nil	
+
 }
 
 // For Project 3

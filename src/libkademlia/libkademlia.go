@@ -197,13 +197,43 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 
 func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error) {
 	// TODO: Implement
+
+	
 	return nil, &CommandFailed{"Not implemented"}
 }
 
 func (k *Kademlia) DoFindValue(contact *Contact,
 	searchKey ID) (value []byte, contacts []Contact, err error) {
 	// TODO: Implement
-	return nil, nil, &CommandFailed{"Not implemented"}
+
+	host:= contact.Host
+	port:=contact.Port
+
+	address := fmt.Sprintf("%s:%v", host.String(), port)
+	portStr := fmt.Sprintf("%v", port)
+	client, err := rpc.DialHTTPPath("tcp", address, portStr)
+	if err != nil {
+		return nil, nil, &CommandFailed{
+		"Unable to find value " + fmt.Sprintf("%s:%v", host.String(), port)}
+	}
+	
+
+	req := FindValueRequest{k.SelfContact, NewRandomID(), searchKey}
+	var res FindValueResult
+	err = client.Call("FindValueRequest", &req, &res)
+	if err != nil {
+		return nil, nil, &CommandFailed{
+		"Unable to find value" + fmt.Sprintf("%s:%v", host.String(), port)}
+	} else {
+		err = k.Update(&req.Sender)
+		if err != nil {
+			return nil,nil, &CommandFailed{
+			"Update failed in FindValue " + fmt.Sprintf("%s:%v", host.String(), port)}
+		}
+		return res.Values, res.Nodes, res.Err  
+	}
+
+	
 }
 
 func (k *Kademlia) LocalFindValue(searchKey ID) ([]byte, error) {
