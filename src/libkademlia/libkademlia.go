@@ -29,7 +29,7 @@ type Kademlia struct {
 	VTableResChan	chan VTableMsg
 }
 
-type KBucketsMsg {
+type KBucketsMsg struct {
 	Request 	string
 	Key 		int
 	Value 		KBucket
@@ -37,7 +37,7 @@ type KBucketsMsg {
 }
 
 
-type VTableMsg {
+type VTableMsg struct {
 	Request 	string
 	Key 		ID
 	Value 		[]byte
