@@ -75,7 +75,7 @@ func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 	for k, v := range k.kademlia.ValueTable {
 		fmt.Printf("%v:%v", k, v)
 	}
-	err := k.kademlia.Update(req.Sender)
+	err := k.kademlia.Update(&req.Sender)
 	if err != nil {
 		fmt.Printf("Store broke ", err)
 		res.Err = err
@@ -145,20 +145,33 @@ func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) erro
 
 	// the key B is the the seatch key 
 
-	res.MsgID = CopyID(req.MsgID)
-	req.Sender = k.kademlia.SelfContact
-
-	// TODO: Update contact, etc
+	fmt.Println("In FindValue RPC")
 	err := k.kademlia.Update(&req.Sender)
-
 	if err != nil {
 		return &CommandFailed{
-		"Update failed FindValue"}
+			"Update failed in FindValue " }
 	}
-	//res.Nodes = NearestHelper(req.NodeID)
+	res.MsgID = CopyID(req.MsgID)
 
-	return nil	
+	//req.Key is the target ID
+	value:=k.kademlia.ValueTable[req.Key]
+	if value == nil {
+			nodes, err :=  k.kademlia.NearestHelper(req.Key)
+			if err!=nil {
+				return &CommandFailed{ " FindNode failed"}
+			}
+			res.Nodes = nodes
+			res.Value = nil
+		 
+	} else {
+		res.Value = value
+		res.Nodes = nil
+	}
 
+
+	return nil
+	
+	
 }
 
 // For Project 3
