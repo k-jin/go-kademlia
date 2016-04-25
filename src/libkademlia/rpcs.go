@@ -72,6 +72,21 @@ type StoreResult struct {
 
 func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 	// TODO: Implement.
+	res.MsgID = req.MsgID
+	for k, v := range k.kademlia.ValueTable {
+		fmt.Printf("%v:%v", k, v)
+	}
+	err := k.kademlia.Update(req.Sender)
+	if err != nil {
+		fmt.Printf("Store broke ", err)
+		res.Err = err
+		return err
+	}
+	k.kademlia.ValueTable[req.Key] = req.Value
+	for k, v := range k.kademlia.ValueTable {
+		fmt.Printf("%v:%v", k, v)
+	}
+	res.Err = nil
 	return nil
 }
 
