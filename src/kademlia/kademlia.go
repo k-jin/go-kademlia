@@ -55,7 +55,14 @@ func main() {
 	if err != nil {
 		log.Fatal("LookupIP fatal", err)
 	}
-	hostIP := ips[0]
+	var hostIP net.IP
+	for _, ip := range ips {
+		if ip.To4() != nil {
+			hostIP = ip
+			break
+		}
+	}
+	
 	_, err = rpc.DialHTTPPath("tcp", firstPeerStr,
 		                 rpc.DefaultRPCPath + port)
 
