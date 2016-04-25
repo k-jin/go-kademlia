@@ -22,8 +22,21 @@ const (
 type Kademlia struct {
 	NodeID      ID
 	SelfContact Contact
-	KBuckets map[int]KBucket
-	ValueTable map[ID][]byte
+	ValueTable 	map[ID][]byte
+	KBucketsChan chan KBucketsReq
+	VTableChan	chan VTableReq
+}
+
+type KBucketsReq {
+	Request 	string
+	Key 		int
+	Value 		KBucket
+}
+
+type VTableReq {
+	Request 	string
+	Key 		ID
+	Value 		[]byte
 }
 
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
@@ -31,8 +44,10 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.NodeID = nodeID
 
 	// TODO: Initialize other state here as you add functionality.
-	k.KBuckets = make(map[int]KBucket)
+	
 	k.ValueTable = make(map[ID][]byte)
+	k.KBucketsChan = make(chan KBucketsReq)
+	k.VTableChan = make(chan VTableReq)
 	// Set up RPC server
 	// NOTE: KademliaRPC is just a wrapper around Kademlia. This type includes
 	// the RPC functions.
@@ -65,11 +80,30 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 		}
 	}
 	k.SelfContact = Contact{k.NodeID, host, uint16(port_int)}
+	go KBucketsManager()
 	return k
 }
 
 func NewKademlia(laddr string) *Kademlia {
 	return NewKademliaWithId(laddr, NewRandomID())
+}
+
+func KBucketsManager() {
+	KBuckets := make(map[int]KBucket)
+	for {
+		req := <- KBucketsChan
+		switch req.Request {
+		case "get":
+		case "update":
+		case "add":
+		case "delete":
+		default:
+		}
+	}
+}
+
+func VTableManager() {
+
 }
 
 // TODO maybe add error messages
