@@ -109,10 +109,9 @@ func (k *Kademlia) Update(contact *Contact) error {
 		}
 
 	}
+	k.KBuckets[bucket_id] = bucket
 	return nil
 
-
-	
 }
 
 type ContactNotFoundError struct {
@@ -164,8 +163,9 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
 	address := fmt.Sprintf("%s:%v", host.String(), port)
 	portStr := fmt.Sprintf("%v", port)
-	client, err := rpc.DialHTTPPath("tcp", address, portStr)
+	client, err := rpc.DialHTTPPath("tcp", address, rpc.DefaultRPCPath + portStr)
 	if err != nil {
+		log.Printf("DialHTTPPath err", err)
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	}
@@ -173,13 +173,15 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 
 	ping := PingMessage{k.SelfContact, NewRandomID()}
 	var pong PongMessage
-	err = client.Call("Ping", &ping, &pong)
+	err = client.Call("KademliaRPC.Ping", &ping, &pong)
 	if err != nil {
+		log.Printf("client.Call err", err)
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	} else {
 		err = k.Update(&pong.Sender)
 		if err != nil {
+			log.Printf("Update err", err)
 			return nil, &CommandFailed{
 			"Update failed in DoPing: " + fmt.Sprintf("%s:%v", host.String(), port)}
 		}
@@ -198,8 +200,28 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error) {
 	// TODO: Implement
 
-	
-	return nil, &CommandFailed{"Not implemented"}
+	host := contact.Host
+	port := contact.Port
+	address := fmt.Sprintf("%s:%v", host.String(), port)
+	portStr := fmt.Sprintf("%v", port)
+	client, err := rpc.DialHTTPPath("tcp", address, rpc.DefaultRPCPath + portStr)
+	if err != nil {
+		return nil, &CommandFailed{
+		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
+	}
+	log.Printf("Sending DoFindNode request\n")
+
+	request := FindNodeRequest{k.SelfContact, NewRandomID(), searchKey}
+	var result FindNodeResult
+	err = client.Call("KademliaRPC.FindNode", &request, &result)
+	if err != nil {
+		log.Printf("Find Node Error", err)
+		return nil, &CommandFailed{
+		"Unable to Find Node " + fmt.Sprintf("%s:%v", host.String(), port)}
+	} else {
+		return result.Nodes, nil
+	}
+
 }
 
 func (k *Kademlia) DoFindValue(contact *Contact,

@@ -46,31 +46,47 @@ func main() {
 	log.Println("Group: " + netIds + "\n")
 
 	kadem := libkademlia.NewKademlia(listenStr)
-
+	log.Printf("Kadem NodeID: ", kadem.NodeID.AsString())
 	// Confirm our server is up with a PING request and then exit.
 	// Your code should loop forever, reading instructions from stdin and
 	// printing their results to stdout. See README.txt for more details.
-	_, port, err := net.SplitHostPort(firstPeerStr)
-	client, err := rpc.DialHTTPPath("tcp", firstPeerStr,
+	host, port, err := net.SplitHostPort(firstPeerStr)
+	if host == "localhost" {
+		host = "127.0.0.1"
+	}
+	_, err = rpc.DialHTTPPath("tcp", firstPeerStr,
 		                 rpc.DefaultRPCPath + port)
+
+	// client, err := rpc.DialHTTPPath("tcp", firstPeerStr,
+		                 // rpc.DefaultRPCPath + port)
 	if err != nil {
 		log.Fatal("DialHTTP: ", err)
 	}
 
-	log.Printf("Pinging initial peer\n")
+	// log.Printf("Pinging initial peer\n")
 
 	// This is a sample of what an RPC looks like
 	// TODO: Replace this with a call to your completed DoPing!
-	ping := new(libkademlia.PingMessage)
-	ping.MsgID = libkademlia.NewRandomID()
-	var pong libkademlia.PongMessage
-	err = client.Call("KademliaRPC.Ping", ping, &pong)
-	if err != nil {
-		log.Fatal("Call: ", err)
-	}
-	log.Printf("ping msgID: %s\n", ping.MsgID.AsString())
-	log.Printf("pong msgID: %s\n\n", pong.MsgID.AsString())
+	// ping := new(libkademlia.PingMessage)
+	// ping.MsgID = libkademlia.NewRandomID()
+	// var pong libkademlia.PongMessage
+	// err = client.Call("KademliaRPC.Ping", ping, &pong)
+	// if err != nil {
+	// 	log.Fatal("Call: ", err)
+	// }
+	// log.Printf("ping msgID: %s\n", ping.MsgID.AsString())
+	// log.Printf("pong msgID: %s\n\n", pong.MsgID.AsString())
 
+
+	portNum, err := strconv.ParseUint(port, 10, 16)
+	if err != nil {
+		log.Fatal("ParseUint: ", err)
+	}
+	var portNum16 uint16 = uint16(portNum)
+	reply, err := kadem.DoPing(net.ParseIP(host), portNum16)
+	log.Printf(reply.NodeID.AsString())
+
+	
 	in := bufio.NewReader(os.Stdin)
 	quit := false
 	for !quit {
