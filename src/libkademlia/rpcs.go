@@ -150,6 +150,9 @@ func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) erro
 	fmt.Println("In FindValue RPC")
 	err := k.kademlia.Update(&req.Sender)
 	if err != nil {
+		res.Nodes = nil
+		res.Value = nil
+		res.Err = err
 		return &CommandFailed{
 			"Update failed in FindValue " }
 	}
@@ -160,6 +163,9 @@ func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) erro
 	if value == nil {
 			nodes, err :=  k.kademlia.NearestHelper(req.Key)
 			if err!=nil {
+				res.Nodes = nil
+				res.Value = nil
+				res.Err = err
 				return &CommandFailed{ " FindNode failed"}
 			}
 			res.Nodes = nodes

@@ -286,7 +286,7 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 				return nil, nil, err
 			}
 		}
-		return res.Value, res.Nodes, nil
+		return res.Value, res.Nodes, res.Err
 	}
 
 	
