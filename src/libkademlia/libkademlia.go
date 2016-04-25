@@ -222,40 +222,88 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 
 func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error) {
 	// TODO: Implement
-	return nil, &CommandFailed{"Not implemented"}
+
+	host := contact.Host
+	port := contact.Port
+	address := fmt.Sprintf("%s:%v", host.String(), port)
+	portStr := fmt.Sprintf("%v", port)
+	client, err := rpc.DialHTTPPath("tcp", address, rpc.DefaultRPCPath + portStr)
+	if err != nil {
+		return nil, &CommandFailed{
+		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
+	}
+	log.Printf("Sending DoFindNode request\n")
+
+	request := FindNodeRequest{k.SelfContact, NewRandomID(), searchKey}
+	var result FindNodeResult
+	err = client.Call("KademliaRPC.FindNode", &request, &result)
+	if err != nil {
+		log.Printf("Find Node Error", err)
+		return nil, &CommandFailed{
+		"Unable to Find Node " + fmt.Sprintf("%s:%v", host.String(), port)}
+	} else {
+
+		for _, node := range result.Nodes {
+			err := k.Update(&node)
+			if err !=nil {
+				return nil, err
+			}
+		}
+		return result.Nodes, nil
+	}
+
 }
 
 func (k *Kademlia) DoFindValue(contact *Contact,
 	searchKey ID) (value []byte, contacts []Contact, err error) {
 	// TODO: Implement
 
-	// host:= contact.Host
-	// port:=contact.Port
+	host:= contact.Host
+	port:=contact.Port
 
-	// address := fmt.Sprintf("%s:%v", host.String(), port)
-	// portStr := fmt.Sprintf("%v", port)
-	// client, err := rpc.DialHTTPPath("tcp", address, portStr)
-	// if err != nil {
-	// 	return nil, nil, &CommandFailed{
-	// 	"Unable to find value " + fmt.Sprintf("%s:%v", host.String(), port)}
-	// }
+	address := fmt.Sprintf("%s:%v", host.String(), port)
+	portStr := fmt.Sprintf("%v", port)
+	client, err := rpc.DialHTTPPath("tcp", address, portStr)
+	if err != nil {
+		return nil, nil, &CommandFailed{
+		"Unable to find value " + fmt.Sprintf("%s:%v", host.String(), port)}
+	}
 	
 
-	// req := FindValueRequest{k.SelfContact, NewRandomID(), searchKey}
-	// var res FindValueResult
-	// err = client.Call("FindValueRequest", &req, &res)
-	// if err != nil {
-	// 	return nil, nil, &CommandFailed{
-	// 	"Unable to find value" + fmt.Sprintf("%s:%v", host.String(), port)}
-	// } else {
-	// 	err = k.Update(&req.Sender)
-	// 	if err != nil {
-	// 		return nil,nil, &CommandFailed{
-	// 		"Update failed in FindValue " + fmt.Sprintf("%s:%v", host.String(), port)}
-	// 	}
-	// 	return res.Values, res.Nodes, res.Err  
-	// }
-	return nil,nil,nil
+	req := FindValueRequest{k.SelfContact, NewRandomID(), searchKey}
+	var res FindValueResult
+	err = client.Call("FindValueRequest", &req, &res)
+	if err != nil {
+		return nil, nil, &CommandFailed{
+		"Unable to find value" + fmt.Sprintf("%s:%v", host.String(), port)}
+	} else {
+		err = k.Update(&req.Sender)
+		if err != nil {
+			return nil,nil, &CommandFailed{
+			"Update failed in FindValue " + fmt.Sprintf("%s:%v", host.String(), port)}
+		}
+		return res.Value, res.Nodes, res.Err  
+	}
+
+	
+}
+func (k *Kademlia) NearestHelper(targetKey ID) (contacts []Contact, err error) {
+	bucket_id :=k.NodeID.Xor(targetKey).PrefixLen()
+
+	contacts = make([]Contact, 20, 20)
+	ctr :=0
+	for ctr < 20 && bucket_id < 160 {
+
+		bucket := k.KBuckets[bucket_id]
+	
+		for i,bucketContact := range bucket.Contacts {
+			contacts  = append(contacts, bucketContact)
+			ctr = i
+		}
+
+		bucket_id += 1
+	}
+	return contacts, err 
 
 }
 

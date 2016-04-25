@@ -23,7 +23,6 @@ type Contact struct {
 
 type KBucket struct {
 	Contacts []Contact
-	Size int
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -109,6 +108,19 @@ type FindNodeResult struct {
 
 func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	// TODO: Implement.
+	fmt.Println("In FindNode RPC")
+	err := k.kademlia.Update(&req.Sender)
+	if err != nil {
+		return &CommandFailed{
+			"Update failed in FindNode " }
+	}
+	res.MsgID = CopyID(req.MsgID)
+
+	nodes, err :=  k.kademlia.NearestHelper(req.NodeID)
+	if err!=nil {
+		return &CommandFailed{ " FindNode failed"}
+	}
+	res.Nodes = nodes
 	return nil
 }
 
@@ -132,7 +144,23 @@ type FindValueResult struct {
 
 func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) error {
 	// TODO: Implement.
-	return nil
+
+	// the key B is the the seatch key 
+
+	res.MsgID = CopyID(req.MsgID)
+	req.Sender = k.kademlia.SelfContact
+
+	// TODO: Update contact, etc
+	err := k.kademlia.Update(&req.Sender)
+
+	if err != nil {
+		return &CommandFailed{
+		"Update failed FindValue"}
+	}
+	//res.Nodes = NearestHelper(req.NodeID)
+
+	return nil	
+
 }
 
 // For Project 3
