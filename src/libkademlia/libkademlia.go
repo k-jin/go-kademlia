@@ -164,9 +164,9 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
 	address := fmt.Sprintf("%s:%v", host.String(), port)
 	portStr := fmt.Sprintf("%v", port)
-	client, err := rpc.DialHTTPPath("tcp", address, portStr)
+	client, err := rpc.DialHTTPPath("tcp", address, rpc.DefaultRPCPath + portStr)
 	if err != nil {
-		log.Printf("DialHTTPPath err")
+		log.Printf("DialHTTPPath err", err)
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	}
