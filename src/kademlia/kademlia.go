@@ -51,9 +51,11 @@ func main() {
 	// Your code should loop forever, reading instructions from stdin and
 	// printing their results to stdout. See README.txt for more details.
 	host, port, err := net.SplitHostPort(firstPeerStr)
-	if host == "localhost" {
-		host = "127.0.0.1"
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		log.Fatal("LookupIP fatal", err)
 	}
+	hostIP := ips[0]
 	_, err = rpc.DialHTTPPath("tcp", firstPeerStr,
 		                 rpc.DefaultRPCPath + port)
 
@@ -83,7 +85,7 @@ func main() {
 		log.Fatal("ParseUint: ", err)
 	}
 	var portNum16 uint16 = uint16(portNum)
-	reply, err := kadem.DoPing(net.ParseIP(host), portNum16)
+	reply, err := kadem.DoPing(hostIP, portNum16)
 	log.Printf(reply.NodeID.AsString())
 
 	
