@@ -76,7 +76,7 @@ func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 	for k, v := range k.kademlia.ValueTable {
 		fmt.Printf("%v:%v", k, v)
 	}
-	err := k.kademlia.Update(req.Sender)
+	err := k.kademlia.Update(&req.Sender)
 	if err != nil {
 		fmt.Printf("Store broke ", err)
 		res.Err = err
