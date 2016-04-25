@@ -85,6 +85,8 @@ func main() {
 	var portNum16 uint16 = uint16(portNum)
 	reply, err := kadem.DoPing(net.ParseIP(host), portNum16)
 	log.Printf(reply.NodeID.AsString())
+
+	
 	in := bufio.NewReader(os.Stdin)
 	quit := false
 	for !quit {

@@ -109,10 +109,9 @@ func (k *Kademlia) Update(contact *Contact) error {
 		}
 
 	}
+	k.KBuckets[bucket_id] = bucket
 	return nil
 
-
-	
 }
 
 type ContactNotFoundError struct {
@@ -176,13 +175,13 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	var pong PongMessage
 	err = client.Call("KademliaRPC.Ping", &ping, &pong)
 	if err != nil {
-		log.Printf("cliet.Call err")
+		log.Printf("client.Call err", err)
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	} else {
 		err = k.Update(&pong.Sender)
 		if err != nil {
-			log.Printf("Update err")
+			log.Printf("Update err", err)
 			return nil, &CommandFailed{
 			"Update failed in DoPing: " + fmt.Sprintf("%s:%v", host.String(), port)}
 		}
