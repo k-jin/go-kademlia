@@ -196,10 +196,28 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 
 func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 	// TODO: Implement
+	address := fmt.Sprintf("%s:%v", contact.Host.String(), contact.Port)
+	portStr := fmt.Sprintf("%v", contact.Port)
 
+	client, err := rpc.DialHTTPPath("tcp", address, rpc.DefaultRPCPath + portStr)
+	if err != nil {
+		log.Printf("%v", err)
+		return err
+	} 
+	storeReq := StoreRequest{k.SelfContact, NewRandomID(), key, value}
+	var storeRes StoreResult
+	err = client.Call("KademliaRPC.Store", &storeReq, &storeRes)
+	if err != nil {
+		return err
+	}
 
+	err = k.Update(contact) 
+	if err !=  nil {
+		log.Printf("Update err", err)
+		return err
+	}
+	return nil
 
-	return &CommandFailed{"Not implemented"}
 }
 
 func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error) {
@@ -290,6 +308,7 @@ func (k *Kademlia) NearestHelper(targetKey ID) (contacts []Contact, err error) {
 		bucket_id += 1
 	}
 	return contacts, err 
+
 }
 
 func (k *Kademlia) LocalFindValue(searchKey ID) ([]byte, error) {
