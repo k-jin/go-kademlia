@@ -109,7 +109,7 @@ func (k *Kademlia) Update(contact *Contact) error {
 		}
 
 	}
-	k.KBuckets[bucket_id].Contacts = bucket.Contacts
+	k.KBuckets[bucket_id] = bucket
 	return nil
 
 }
