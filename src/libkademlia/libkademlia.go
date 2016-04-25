@@ -204,7 +204,7 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
 	port := contact.Port
 	address := fmt.Sprintf("%s:%v", host.String(), port)
 	portStr := fmt.Sprintf("%v", port)
-	client, err := rpc.DialHTTPPath("tcp", address, portStr)
+	client, err := rpc.DialHTTPPath("tcp", address, rpc.DefaultRPCPath + portStr)
 	if err != nil {
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
@@ -212,13 +212,14 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
 	log.Printf("Sending DoFindNode request\n")
 
 	request := FindNodeRequest{k.SelfContact, NewRandomID(), searchKey}
-	var contacts []Contact
-	err = client.Call("FindValue", &request, &contacts)
+	var result FindNodeResult
+	err = client.Call("KademliaRPC.FindNode", &request, &result)
 	if err != nil {
+		log.Printf("Find Node Error", err)
 		return nil, &CommandFailed{
 		"Unable to Find Node " + fmt.Sprintf("%s:%v", host.String(), port)}
 	} else {
-		return contacts, nil
+		return result.Nodes, nil
 	}
 }
 

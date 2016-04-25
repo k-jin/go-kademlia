@@ -91,12 +91,14 @@ type FindNodeResult struct {
 
 func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	// TODO: Implement.
+	fmt.Println("In FindNode RPC")
 	err := k.kademlia.Update(&req.Sender)
 	if err != nil {
 		return &CommandFailed{
-			"Update failed in FindNode: " + err}
+			"Update failed in FindNode " }
 	}
 	res.MsgID = CopyID(req.MsgID)
+	res.Nodes = make([]Contact, 20, 20)
 	return nil
 }
 
