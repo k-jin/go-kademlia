@@ -23,6 +23,7 @@ type Kademlia struct {
 	NodeID      ID
 	SelfContact Contact
 	KBuckets map[int]KBucket
+	ValueTable map[ID][]byte
 }
 
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
@@ -31,6 +32,7 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 
 	// TODO: Initialize other state here as you add functionality.
 	k.KBuckets = make(map[int]KBucket)
+	k.ValueTable = make(map[ID][]byte)
 	// Set up RPC server
 	// NOTE: KademliaRPC is just a wrapper around Kademlia. This type includes
 	// the RPC functions.
@@ -169,7 +171,7 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	}
-	log.Printf("Pinging initial peer\n")
+	log.Printf("Pinging peer	\n")
 
 	ping := PingMessage{k.SelfContact, NewRandomID()}
 	var pong PongMessage
@@ -194,6 +196,9 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 
 func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 	// TODO: Implement
+
+
+
 	return &CommandFailed{"Not implemented"}
 }
 
