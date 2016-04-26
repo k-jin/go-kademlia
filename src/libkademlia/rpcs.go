@@ -7,7 +7,7 @@ package libkademlia
 import (
 	"net"
 	"fmt"
-	"log"
+	// "log"
 )
 
 type KademliaRPC struct {
@@ -81,7 +81,15 @@ func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 		res.Err = err
 		return err
 	}
-	k.kademlia.ValueTable[req.Key] = req.Value
+	addReq := VTableMsg{"add", req.Key, req.Value, nil}
+	k.kademlia.VTableReqChan <- addReq
+	addRes := <- k.kademlia.VTableResChan
+	if addRes.Err != nil {
+		res.Err = addRes.Err
+		return addRes.Err
+	}
+
+	// k.kademlia.ValueTable[req.Key] = req.Value
 	// fmt.Printf("Updated Value Table \n")
 	// for k, v := range k.kademlia.ValueTable {
 	// 	fmt.Printf("%v:%v\n", k, v)
@@ -158,7 +166,17 @@ func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) erro
 	res.MsgID = CopyID(req.MsgID)
 
 	//req.Key is the target ID
-	value:=k.kademlia.ValueTable[req.Key]
+	getReq := VTableMsg{"get", req.Key, nil, nil}
+	k.kademlia.VTableReqChan <- getReq
+	getRes := <- k.kademlia.VTableResChan
+	if getRes.Err != nil {
+		res.Nodes = nil
+		res.Value = nil
+		res.Err = getRes.Err
+		return &CommandFailed{"Get Request failed in FindValue"}
+	}
+	value := getRes.Value
+	// value:=k.kademlia.ValueTable[req.Key]
 	if value == nil {
 			nodes, err :=  k.kademlia.NearestHelper(req.Key)
 			if err!=nil {
