@@ -7,7 +7,6 @@ package libkademlia
 import (
 	"net"
 	"fmt"
-	// "log"
 )
 
 type KademliaRPC struct {
@@ -41,10 +40,8 @@ type PongMessage struct {
 func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 	// TODO: Finish implementation
 	pong.MsgID = CopyID(ping.MsgID)
-	// Specify the sender=
 	pong.Sender = k.kademlia.SelfContact
 
-	// TODO: Update contact, etc
 	err := k.kademlia.Update(&ping.Sender)
 	if err != nil {
 		return &CommandFailed{
@@ -71,10 +68,6 @@ type StoreResult struct {
 func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 	// TODO: Implement.
 	res.MsgID = req.MsgID
-	// fmt.Printf("Original Value Table \n")
-	// for k, v := range k.kademlia.ValueTable {
-	// 	fmt.Printf("%v:%v\n", k, v)
-	// }
 	err := k.kademlia.Update(&req.Sender)
 	if err != nil {
 		fmt.Printf("Store broke ", err)
@@ -89,11 +82,6 @@ func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 		return addRes.Err
 	}
 
-	// k.kademlia.ValueTable[req.Key] = req.Value
-	// fmt.Printf("Updated Value Table \n")
-	// for k, v := range k.kademlia.ValueTable {
-	// 	fmt.Printf("%v:%v\n", k, v)
-	// }
 	res.Err = nil
 	return nil
 }
@@ -152,7 +140,7 @@ type FindValueResult struct {
 func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) error {
 	// TODO: Implement.
 
-	// the key B is the the seatch key 
+	// the key B is the the search key 
 
 	// fmt.Println("In FindValue RPC")
 	err := k.kademlia.Update(&req.Sender)
