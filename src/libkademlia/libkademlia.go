@@ -43,6 +43,8 @@ type VTableMsg struct {
 	Err 		error
 }
 
+
+// May not be thread safe, consider adding "get/update" case
 func (k *Kademlia) KBucketsManager() {
 	KBuckets := make(map[int]KBucket)
 	for {
