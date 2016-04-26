@@ -171,7 +171,6 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	}
-	log.Printf("Pinging peer	\n")
 
 	ping := PingMessage{k.SelfContact, NewRandomID()}
 	var pong PongMessage
@@ -232,7 +231,7 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	}
-	log.Printf("Sending DoFindNode request\n")
+	// log.Printf("Sending DoFindNode request\n")
 
 	request := FindNodeRequest{k.SelfContact, NewRandomID(), searchKey}
 	var result FindNodeResult
