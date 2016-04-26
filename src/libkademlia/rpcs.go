@@ -46,7 +46,6 @@ func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 
 	// TODO: Update contact, etc
 	err := k.kademlia.Update(&ping.Sender)
-	log.Printf("in KademliaRPC.Ping")
 	if err != nil {
 		return &CommandFailed{
 		"Update failed in Ping" + fmt.Sprintf("ping message: %v \n pong message: %v", ping, pong)}
@@ -72,10 +71,10 @@ type StoreResult struct {
 func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 	// TODO: Implement.
 	res.MsgID = req.MsgID
-	fmt.Printf("Original Value Table \n")
-	for k, v := range k.kademlia.ValueTable {
-		fmt.Printf("%v:%v\n", k, v)
-	}
+	// fmt.Printf("Original Value Table \n")
+	// for k, v := range k.kademlia.ValueTable {
+	// 	fmt.Printf("%v:%v\n", k, v)
+	// }
 	err := k.kademlia.Update(&req.Sender)
 	if err != nil {
 		fmt.Printf("Store broke ", err)
@@ -83,10 +82,10 @@ func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 		return err
 	}
 	k.kademlia.ValueTable[req.Key] = req.Value
-	fmt.Printf("Updated Value Table \n")
-	for k, v := range k.kademlia.ValueTable {
-		fmt.Printf("%v:%v\n", k, v)
-	}
+	// fmt.Printf("Updated Value Table \n")
+	// for k, v := range k.kademlia.ValueTable {
+	// 	fmt.Printf("%v:%v\n", k, v)
+	// }
 	res.Err = nil
 	return nil
 }
@@ -108,7 +107,7 @@ type FindNodeResult struct {
 
 func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	// TODO: Implement.
-	fmt.Println("In FindNode RPC")
+	// fmt.Println("In FindNode RPC")
 	err := k.kademlia.Update(&req.Sender)
 	if err != nil {
 		return &CommandFailed{
@@ -147,20 +146,39 @@ func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) erro
 
 	// the key B is the the seatch key 
 
-	res.MsgID = CopyID(req.MsgID)
-	req.Sender = k.kademlia.SelfContact
-
-	// TODO: Update contact, etc
+	// fmt.Println("In FindValue RPC")
 	err := k.kademlia.Update(&req.Sender)
-
 	if err != nil {
+		res.Nodes = nil
+		res.Value = nil
+		res.Err = err
 		return &CommandFailed{
-		"Update failed FindValue"}
+			"Update failed in FindValue " }
 	}
-	//res.Nodes = NearestHelper(req.NodeID)
+	res.MsgID = CopyID(req.MsgID)
 
-	return nil	
+	//req.Key is the target ID
+	value:=k.kademlia.ValueTable[req.Key]
+	if value == nil {
+			nodes, err :=  k.kademlia.NearestHelper(req.Key)
+			if err!=nil {
+				res.Nodes = nil
+				res.Value = nil
+				res.Err = err
+				return &CommandFailed{ " FindNode failed"}
+			}
+			res.Nodes = nodes
+			res.Value = nil
+		 
+	} else {
+		res.Value = value
+		res.Nodes = nil
+	}
 
+
+	return nil
+	
+	
 }
 
 // For Project 3

@@ -46,14 +46,23 @@ func main() {
 	log.Println("Group: " + netIds + "\n")
 
 	kadem := libkademlia.NewKademlia(listenStr)
-	log.Printf("Kadem NodeID: ", kadem.NodeID.AsString())
+	log.Println("Kadem NodeID: ", kadem.NodeID.AsString())
 	// Confirm our server is up with a PING request and then exit.
 	// Your code should loop forever, reading instructions from stdin and
 	// printing their results to stdout. See README.txt for more details.
 	host, port, err := net.SplitHostPort(firstPeerStr)
-	if host == "localhost" {
-		host = "127.0.0.1"
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		log.Fatal("LookupIP fatal", err)
 	}
+	var hostIP net.IP
+	for _, ip := range ips {
+		if ip.To4() != nil {
+			hostIP = ip
+			break
+		}
+	}
+	
 	_, err = rpc.DialHTTPPath("tcp", firstPeerStr,
 		                 rpc.DefaultRPCPath + port)
 
@@ -83,7 +92,7 @@ func main() {
 		log.Fatal("ParseUint: ", err)
 	}
 	var portNum16 uint16 = uint16(portNum)
-	reply, err := kadem.DoPing(net.ParseIP(host), portNum16)
+	reply, err := kadem.DoPing(hostIP, portNum16)
 	log.Printf(reply.NodeID.AsString())
 
 	

@@ -214,7 +214,6 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	}
-	log.Printf("Pinging peer	\n")
 
 	ping := PingMessage{k.SelfContact, NewRandomID()}
 	var pong PongMessage
@@ -275,7 +274,7 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
 		return nil, &CommandFailed{
 		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	}
-	log.Printf("Sending DoFindNode request\n")
+	// log.Printf("Sending DoFindNode request\n")
 
 	request := FindNodeRequest{k.SelfContact, NewRandomID(), searchKey}
 	var result FindNodeResult
@@ -306,7 +305,7 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 
 	address := fmt.Sprintf("%s:%v", host.String(), port)
 	portStr := fmt.Sprintf("%v", port)
-	client, err := rpc.DialHTTPPath("tcp", address, portStr)
+	client, err := rpc.DialHTTPPath("tcp", address, rpc.DefaultRPCPath + portStr)
 	if err != nil {
 		return nil, nil, &CommandFailed{
 		"Unable to find value " + fmt.Sprintf("%s:%v", host.String(), port)}
@@ -315,17 +314,21 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 
 	req := FindValueRequest{k.SelfContact, NewRandomID(), searchKey}
 	var res FindValueResult
-	err = client.Call("FindValueRequest", &req, &res)
+	err = client.Call("KademliaRPC.FindValue", &req, &res)
 	if err != nil {
 		return nil, nil, &CommandFailed{
 		"Unable to find value" + fmt.Sprintf("%s:%v", host.String(), port)}
 	} else {
-		err = k.Update(&req.Sender)
-		if err != nil {
-			return nil,nil, &CommandFailed{
-			"Update failed in FindValue " + fmt.Sprintf("%s:%v", host.String(), port)}
+
+
+		for _,node := range res.Nodes {
+
+			err := k.Update(&node)
+			if err !=nil {
+				return nil, nil, err
+			}
 		}
-		return res.Value, res.Nodes, res.Err  
+		return res.Value, res.Nodes, res.Err
 	}
 
 	
@@ -351,8 +354,13 @@ func (k *Kademlia) NearestHelper(targetKey ID) (contacts []Contact, err error) {
 }
 
 func (k *Kademlia) LocalFindValue(searchKey ID) ([]byte, error) {
-	// TODO: Implement
-	return []byte(""), &CommandFailed{"Not implemented"}
+	value := k.ValueTable[searchKey]
+	if value == nil {
+		return nil, &CommandFailed{
+		"Unable to find value LocalFindValue"}
+	} else {
+		return value, nil
+	}
 }
 
 // For project 2!
