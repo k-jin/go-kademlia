@@ -43,9 +43,17 @@ type VTableMsg struct {
 	Err 		error
 }
 
+// IN THE NEXT TWO FUNCTIONS
+// the print for loops will cause race conditions so only use for debugging
+// run "go install kademlia" when printing the loops
+
 func (k *Kademlia) KBucketsManager() {
 	KBuckets := make(map[int]KBucket)
 	for {
+		// fmt.Printf("Original KBuckets Table \n")
+		// for k, v := range KBuckets {
+		// 	fmt.Printf("%v:%v\n", k, v)
+		// }
 		req := <- k.KBucketsReqChan
 		var res KBucketsMsg
 		res = req
@@ -67,7 +75,10 @@ func (k *Kademlia) KBucketsManager() {
 				res.Err = &CommandFailed{"Invalid operation"}
 			}
 		// }
-		
+		// fmt.Printf("Updated KBuckets Table \n")
+		// for k, v := range KBuckets {
+		// 	fmt.Printf("%v:%v\n", k, v)
+		// }
 		k.KBucketsResChan <- res
 	}
 }
@@ -75,6 +86,10 @@ func (k *Kademlia) KBucketsManager() {
 func (k *Kademlia) VTableManager() {
 	ValueTable := make(map[ID][]byte)
 	for {
+		// fmt.Printf("Updated Value Table \n")
+		// for k, v := range ValueTable {
+		// 	fmt.Printf("%v:%v\n", k, v)
+		// }
 		req := <- k.VTableReqChan
 		var res VTableMsg
 		res = req
@@ -96,7 +111,10 @@ func (k *Kademlia) VTableManager() {
 				res.Err = &CommandFailed{"Invalid operation"}
 			}
 		// }
-		
+		// fmt.Printf("Updated Value Table \n")
+		// for k, v := range ValueTable {
+		// 	fmt.Printf("%v:%v\n", k, v)
+		// }
 		k.VTableResChan <- res
 	}
 }
