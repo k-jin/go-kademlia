@@ -7,7 +7,6 @@ package libkademlia
 import (
 	"net"
 	"fmt"
-	"log"
 )
 
 type KademliaRPC struct {
@@ -41,10 +40,8 @@ type PongMessage struct {
 func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 	// TODO: Finish implementation
 	pong.MsgID = CopyID(ping.MsgID)
-	// Specify the sender=
 	pong.Sender = k.kademlia.SelfContact
 
-	// TODO: Update contact, etc
 	err := k.kademlia.Update(&ping.Sender)
 	if err != nil {
 		return &CommandFailed{
@@ -71,21 +68,20 @@ type StoreResult struct {
 func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 	// TODO: Implement.
 	res.MsgID = req.MsgID
-	// fmt.Printf("Original Value Table \n")
-	// for k, v := range k.kademlia.ValueTable {
-	// 	fmt.Printf("%v:%v\n", k, v)
-	// }
 	err := k.kademlia.Update(&req.Sender)
 	if err != nil {
 		fmt.Printf("Store broke ", err)
 		res.Err = err
 		return err
 	}
-	k.kademlia.ValueTable[req.Key] = req.Value
-	// fmt.Printf("Updated Value Table \n")
-	// for k, v := range k.kademlia.ValueTable {
-	// 	fmt.Printf("%v:%v\n", k, v)
-	// }
+	addReq := VTableMsg{"add", req.Key, req.Value, nil}
+	k.kademlia.VTableReqChan <- addReq
+	addRes := <- k.kademlia.VTableResChan
+	if addRes.Err != nil {
+		res.Err = addRes.Err
+		return addRes.Err
+	}
+
 	res.Err = nil
 	return nil
 }
@@ -144,7 +140,7 @@ type FindValueResult struct {
 func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) error {
 	// TODO: Implement.
 
-	// the key B is the the seatch key 
+	// the key B is the the search key 
 
 	// fmt.Println("In FindValue RPC")
 	err := k.kademlia.Update(&req.Sender)
@@ -158,7 +154,17 @@ func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) erro
 	res.MsgID = CopyID(req.MsgID)
 
 	//req.Key is the target ID
-	value:=k.kademlia.ValueTable[req.Key]
+	getReq := VTableMsg{"get", req.Key, nil, nil}
+	k.kademlia.VTableReqChan <- getReq
+	getRes := <- k.kademlia.VTableResChan
+	if getRes.Err != nil {
+		res.Nodes = nil
+		res.Value = nil
+		res.Err = getRes.Err
+		return &CommandFailed{"Get Request failed in FindValue"}
+	}
+	value := getRes.Value
+	// value:=k.kademlia.ValueTable[req.Key]
 	if value == nil {
 			nodes, err :=  k.kademlia.NearestHelper(req.Key)
 			if err!=nil {

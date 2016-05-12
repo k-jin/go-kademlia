@@ -22,17 +22,86 @@ const (
 type Kademlia struct {
 	NodeID      ID
 	SelfContact Contact
-	KBuckets map[int]KBucket
-	ValueTable map[ID][]byte
+	KBucketsReqChan chan KBucketsMsg
+	KBucketsResChan chan KBucketsMsg
+	VTableReqChan	chan VTableMsg
+	VTableResChan	chan VTableMsg
 }
+
+type KBucketsMsg struct {
+	Request 	string
+	Key 		int
+	Value 		KBucket
+	Err 		error
+}
+
+
+type VTableMsg struct {
+	Request 	string
+	Key 		ID
+	Value 		[]byte
+	Err 		error
+}
+
+
+// May not be thread safe, consider adding "get/update" case
+func (k *Kademlia) KBucketsManager() {
+	KBuckets := make(map[int]KBucket)
+	for {
+		req := <- k.KBucketsReqChan
+		var res KBucketsMsg
+		res = req
+		res.Err = nil
+		switch req.Request {
+		case "get":
+			res.Value = KBuckets[req.Key]
+		case "update":
+			KBuckets[req.Key] = req.Value
+		case "add":
+			KBuckets[req.Key] = req.Value
+		case "delete":
+			delete(KBuckets, res.Key)
+		default:
+			res.Err = &CommandFailed{"Invalid operation"}
+		}
+		k.KBucketsResChan <- res
+	}
+}
+
+func (k *Kademlia) VTableManager() {
+	ValueTable := make(map[ID][]byte)
+	for {
+		req := <- k.VTableReqChan
+		var res VTableMsg
+		res = req
+		res.Err = nil
+		switch req.Request {
+		case "get":
+			res.Value = ValueTable[req.Key]
+		case "update":
+			ValueTable[req.Key] = req.Value
+		case "add":
+			ValueTable[req.Key] = req.Value
+		case "delete":
+			delete(ValueTable, res.Key)
+		default:
+			res.Err = &CommandFailed{"Invalid operation"}
+		}
+		k.VTableResChan <- res
+	}
+}
+
 
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k := new(Kademlia)
 	k.NodeID = nodeID
 
 	// TODO: Initialize other state here as you add functionality.
-	k.KBuckets = make(map[int]KBucket)
-	k.ValueTable = make(map[ID][]byte)
+	
+	k.KBucketsReqChan = make(chan KBucketsMsg)
+	k.KBucketsResChan = make(chan KBucketsMsg)
+	k.VTableReqChan = make(chan VTableMsg)
+	k.VTableResChan = make(chan VTableMsg)
 	// Set up RPC server
 	// NOTE: KademliaRPC is just a wrapper around Kademlia. This type includes
 	// the RPC functions.
@@ -65,6 +134,8 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 		}
 	}
 	k.SelfContact = Contact{k.NodeID, host, uint16(port_int)}
+	go k.KBucketsManager()
+	go k.VTableManager()
 	return k
 }
 
@@ -72,15 +143,20 @@ func NewKademlia(laddr string) *Kademlia {
 	return NewKademliaWithId(laddr, NewRandomID())
 }
 
-// TODO maybe add error messages
 func (k *Kademlia) Update(contact *Contact) error {
 
 	if contact.NodeID == k.SelfContact.NodeID {
 		return nil
 	}
 	bucket_id := contact.NodeID.Xor(k.SelfContact.NodeID).PrefixLen()
-	// Is this a deep or shallow copy
-	bucket := k.KBuckets[bucket_id]
+	getReq := KBucketsMsg{Request: "get", Key: bucket_id}
+	k.KBucketsReqChan <- getReq
+	getRes := <- k.KBucketsResChan
+	if getRes.Err != nil {
+		log.Println("Error in update KBucketsReqChan: ", getRes.Err)
+		return getRes.Err
+	}
+	bucket := getRes.Value
 	_, findErr := k.FindContact(contact.NodeID)
 	if findErr != nil {
 		// did not find contact
@@ -111,7 +187,12 @@ func (k *Kademlia) Update(contact *Contact) error {
 		}
 
 	}
-	k.KBuckets[bucket_id] = bucket
+	updateReq := KBucketsMsg{"update", bucket_id, bucket, nil}
+	k.KBucketsReqChan <- updateReq
+	updateRes := <- k.KBucketsResChan
+	if updateRes.Err != nil{
+		return updateRes.Err
+	}
 	return nil
 
 }
@@ -133,7 +214,14 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	}
 
 	bucket_id := nodeId.Xor(k.SelfContact.NodeID).PrefixLen()
-	bucket := k.KBuckets[bucket_id]
+	getReq := KBucketsMsg{Request: "get", Key: bucket_id}
+	k.KBucketsReqChan <- getReq
+	getRes := <- k.KBucketsResChan
+	if getRes.Err != nil {
+		log.Println("Error in update KBucketsReqChan: ", getRes.Err)
+		return nil, getRes.Err
+	}
+	bucket := getRes.Value
 	for _, contact := range bucket.Contacts {
 		if contact.NodeID == nodeId {
 			return &contact, nil
@@ -296,12 +384,24 @@ func (k *Kademlia) NearestHelper(targetKey ID) (contacts []Contact, err error) {
 	contacts = make([]Contact, 20, 20)
 	ctr :=0
 	for ctr < 20 && bucket_id < 160 {
-
-		bucket := k.KBuckets[bucket_id]
+		getReq := KBucketsMsg{Request: "get", Key: bucket_id}
+		k.KBucketsReqChan <- getReq
+		getRes := <- k.KBucketsResChan
+		if getRes.Err != nil {
+			log.Println("Error in update KBucketsReqChan: ", getRes.Err)
+			return nil, getRes.Err
+		}
+		bucket := getRes.Value
 	
 		for i,bucketContact := range bucket.Contacts {
 			contacts  = append(contacts, bucketContact)
 			ctr = i
+		}
+		updateReq := KBucketsMsg{"update", bucket_id, bucket, nil}
+		k.KBucketsReqChan <- updateReq
+		updateRes := <- k.KBucketsResChan
+		if updateRes.Err != nil {
+			return nil, updateRes.Err
 		}
 
 		bucket_id += 1
@@ -311,7 +411,13 @@ func (k *Kademlia) NearestHelper(targetKey ID) (contacts []Contact, err error) {
 }
 
 func (k *Kademlia) LocalFindValue(searchKey ID) ([]byte, error) {
-	value := k.ValueTable[searchKey]
+	getReq := VTableMsg{"get", searchKey, nil, nil}
+	k.VTableReqChan <- getReq
+	getRes := <- k.VTableResChan
+	if getRes.Err != nil {
+		return nil, getRes.Err
+	}
+	value := getRes.Value
 	if value == nil {
 		return nil, &CommandFailed{
 		"Unable to find value LocalFindValue"}
