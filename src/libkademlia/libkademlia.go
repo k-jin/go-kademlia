@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"strconv"
+	"sort"
 )
 
 const (
@@ -43,6 +44,11 @@ type VTableMsg struct {
 	Err 		error
 }
 
+type ByDistance []Contact
+
+func (a ByDistance) Len() int           { return len(a) }
+func (a ByDistance) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByDistance) Less(i, j int) bool { return a[i].Distance < a[j].Distance }
 
 // May not be thread safe, consider adding "get/update" case
 func (k *Kademlia) KBucketsManager() {
@@ -427,14 +433,49 @@ func (k *Kademlia) LocalFindValue(searchKey ID) ([]byte, error) {
 }
 
 // For project 2!
+
+/*
+	Shortlist 
+
+		A go thread with a shortlist manager
+			fields
+				active []contacts 
+				unchecked []contacts 
+			- Main stopping condition: 20 active contacts (shortlist) found or all unchecked contacts have been checked 
+			and no closer nodes are found to closest node (return what you have in shortlist/active contacts)
+			1. Place 3 self closest contacts in unchecked
+			2. while (!unchecked.isEmpty) send 3 RPC calls to first 3 contacts in unchecked
+				- if RPC doesn't respond in 300ms, remove contact from unchecked (inactive)
+				- else (rpc responds)
+					- if all 20 contacts returned by RPC are further from closestNode, continue (don't add new contacts to unchecked)
+					- else add all 20 contacts returned to unchecked, remove contact from unchecked, add to active, sort unchecked, 
+					update closestNode, only keep the first 20-len(active) in unchecked, remove rest
+
+*/
+
 func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
-	return nil, &CommandFailed{"Not implemented"}
+	selfClosest := DoFindNode(k.SelfContact, id)
+	selfClosest = SortContacts(selfClosest, id)
+	for i := 0; i < 3 {
+		go RPC find node selfClosest[i]
+	}
+
+	// return nil, &CommandFailed{"Not implemented"}
 }
 func (k *Kademlia) DoIterativeStore(key ID, value []byte) ([]Contact, error) {
 	return nil, &CommandFailed{"Not implemented"}
 }
 func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 	return nil, &CommandFailed{"Not implemented"}
+}
+
+func (k *Kademlia) SortContacts(contacts []Contact, target ID) []Contact {
+	// Assign Xor distance from target ID for each contact in contacts
+	for _, contact := range contacts {
+		contact.Distance = contact.NodeID.Xor(target).PrefixLen()
+	}
+	sort.Sort(ByDistance(contacts))
+	return contacts
 }
 
 // For project 3!
