@@ -108,7 +108,8 @@ func TestFindNode(t *testing.T) {
 	instance2 := NewKademlia("localhost:7895")
 	host2, port2, _ := StringToIpPort("localhost:7895")
 	instance1.DoPing(host2, port2)
-	contact2, err := instance1.FindContact(instance2.NodeID)
+	// contact2, err := instance1.FindContact(instance2.NodeID)
+	_, err := instance1.FindContact(instance2.NodeID)
 	if err != nil {
 		t.Error("Instance 2's contact not found in Instance 1's contact list")
 		return
@@ -121,7 +122,8 @@ func TestFindNode(t *testing.T) {
 		instance2.DoPing(host_number, port_number)
 	}
 	key := NewRandomID()
-	contacts, err := instance1.DoFindNode(contact2, key)
+	contacts, err := instance1.DoIterativeFindNode(key)
+	// contacts, err := instance1.DoFindNode(contact2, key)
 	if err != nil {
 		t.Error("Error doing FindNode")
 	}
@@ -130,7 +132,7 @@ func TestFindNode(t *testing.T) {
 		t.Error("No contacts were found")
 	}
 	// TODO: Check that the correct contacts were stored
-	//       (and no other contacts)
+	//       (and no other contacts)	
 
 	return
 }
