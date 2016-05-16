@@ -177,7 +177,7 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 			break
 		}
 	}
-	k.SelfContact = Contact{k.NodeID, host, uint16(port_int),0}
+	k.SelfContact = Contact{k.NodeID, host, uint16(port_int)}
 	go k.KBucketsManager()
 	go k.VTableManager()
 	return k
