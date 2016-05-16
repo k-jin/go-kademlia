@@ -66,17 +66,7 @@ type DoItFNMsg struct {
 	Done 			bool
 }
 
-type ByDistance []Contact
-
-
-// func (a ByDistance) Len() int           { return len(a) }
-// func (a ByDistance) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-// func (a ByDistance) Less(i, j int) bool { 
-// 	// var ai_dist uint64 = a[i].NodeID.Xor(target).PrefixLen()
-// 	// var aj_dist uint64= a[j].NodeID.Xor(target).PrefixLen()
-// 	// return ai_dist < aj_dist
-// 	return a[i].Distance < a[j].Distance
-// }
+var resultChan = make(chan DoItFNMsg)
 
 // May not be thread safe, consider adding "get/update" case
 func (k *Kademlia) KBucketsManager() {
@@ -491,7 +481,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 
 	// Initialize DoItFNMsg structs for each go thread
 	goRequests := make(map[ID]DoItFNMsg)
-	resultChan := make(chan DoItFNMsg)
+	//resultChan := make(chan DoItFNMsg)
 
 	// query self for closest 20 nodes
 	initContacts,err := k.DoFindNode(&k.SelfContact, id)
@@ -588,8 +578,24 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 	return nil, &CommandFailed{"Value not found"}
 }
 func (k *Kademlia) DoIterativeStore(key ID, value []byte) ([]Contact, error) {
+	for {
+		select {
+			case message := <-resultChan :
+				closestContacts := message.ResultContacts
+				var storedContacts []Contact
+				for _, contact := range closestContacts {
+					err := k.DoStore(&contact, key, value)
+					if err == nil {
+						storedContacts = append(storedContacts, contact)
+					}
+				}
+				return storedContacts, nil
+		}
+	}
+	
 	return nil, &CommandFailed{"Not implemented"}
 }
+
 func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 	return nil, &CommandFailed{"Not implemented"}
 }
@@ -699,9 +705,9 @@ func (k *Kademlia) ShortlistManager(target ID) {
 				// 	fmt.Println(active_slice[0])
 				// 	res.Contacts = active_slice[0:1]
 				ShortlistDistanceChan <- minDistance
-				} else {
-					res.Err = &CommandFailed{"empty active_slice"}
-				}
+				// } else {
+				// 	res.Err = &CommandFailed{"empty active_slice"}
+				// }
 			
 			} else {
 				fmt.Println("GETTING unchecked contacts")
