@@ -10,13 +10,8 @@ import (
 	"net/http"
 	"net/rpc"
 	"strconv"
-<<<<<<< HEAD
-	"sort"
 	"time"
 	"math"
-=======
-	//"sort"
->>>>>>> 43e4b19ac4a4358538d50f0c9fbfca56304d5102
 )
 
 const (
@@ -53,7 +48,6 @@ type VTableMsg struct {
 	Err 		error
 }
 
-<<<<<<< HEAD
 // Request can be get or add
 // Active indicates which array we are doing the request to 
 type ShortlistMsg struct {
@@ -72,9 +66,7 @@ type DoItFNMsg struct {
 }
 
 type ByDistance []Contact
-=======
-// type ByDistance []Contact
->>>>>>> 43e4b19ac4a4358538d50f0c9fbfca56304d5102
+
 
 // func (a ByDistance) Len() int           { return len(a) }
 // func (a ByDistance) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
@@ -530,7 +522,6 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			currMsg := goRequests[responseContact.NodeID]
 			currMsg.Done = true
 			goRequests[responseContact.NodeID] = currMsg
-			goRequests[responseContact.NodeID].Done = true
 
 			// Find the shortest distance node within the results
 			var minDistance = math.MaxInt32
