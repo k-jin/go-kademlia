@@ -10,9 +10,13 @@ import (
 	"net/http"
 	"net/rpc"
 	"strconv"
+<<<<<<< HEAD
 	"sort"
 	"time"
 	"math"
+=======
+	//"sort"
+>>>>>>> 43e4b19ac4a4358538d50f0c9fbfca56304d5102
 )
 
 const (
@@ -49,6 +53,7 @@ type VTableMsg struct {
 	Err 		error
 }
 
+<<<<<<< HEAD
 // Request can be get or add
 // Active indicates which array we are doing the request to 
 type ShortlistMsg struct {
@@ -67,10 +72,18 @@ type DoItFNMsg struct {
 }
 
 type ByDistance []Contact
+=======
+// type ByDistance []Contact
+>>>>>>> 43e4b19ac4a4358538d50f0c9fbfca56304d5102
 
-func (a ByDistance) Len() int           { return len(a) }
-func (a ByDistance) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByDistance) Less(i, j int) bool { return a[i].Distance < a[j].Distance }
+// func (a ByDistance) Len() int           { return len(a) }
+// func (a ByDistance) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+// func (a ByDistance) Less(i, j int) bool { 
+// 	// var ai_dist uint64 = a[i].NodeID.Xor(target).PrefixLen()
+// 	// var aj_dist uint64= a[j].NodeID.Xor(target).PrefixLen()
+// 	// return ai_dist < aj_dist
+// 	return a[i].Distance < a[j].Distance
+// }
 
 // May not be thread safe, consider adding "get/update" case
 func (k *Kademlia) KBucketsManager() {
@@ -479,12 +492,6 @@ func (k *Kademlia) LocalFindValue(searchKey ID) ([]byte, error) {
 
 
 func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
-	// selfClosest := DoFindNode(k.SelfContact, id)
-	// selfClosest = SortContacts(selfClosest, id)
-	// for i := 0; i < 3 {
-	// 	go RPC find node selfClosest[i]
-	// }
-
 	// setup shortlist manager for accessing active and inactive shortlist items
 	go k.ShortlistManager(id)
 
@@ -513,6 +520,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 	for _, contact := range getInitRes.Contacts {
 		goRequests[contact.NodeID] = DoItFNMsg{contact, nil, make(chan bool), false}
 		go k.DoFindNodeWrapper(goRequests[contact.NodeID].DestContact, id, resultChan, goRequests[contact.NodeID].QuitChan)
+
 	}
 	//TODO: deal with the case where we don't run 3 node requests
 	for {
@@ -554,7 +562,6 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			}
 		default:
 			cycleOver := false
-
 			if time.Now().Sub(startTime) >= 300 * time.Millisecond {
 				for _, msg := range goRequests {
 					msg.QuitChan <- true
@@ -584,8 +591,6 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			}
 		}
 	}
-
-
 	return nil, &CommandFailed{"Not implemented"}
 }
 func (k *Kademlia) DoIterativeStore(key ID, value []byte) ([]Contact, error) {
@@ -595,15 +600,35 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 	return nil, &CommandFailed{"Not implemented"}
 }
 
-func (k *Kademlia) SortContacts(contacts []Contact, target ID) []Contact {
-	// Assign Xor distance from target ID for each contact in contacts
-	
-	// Original worked that used a field in the Contact
-	for _, contact := range contacts {
-		contact.Distance = contact.NodeID.Xor(target).PrefixLen()
+func (k *Kademlia) Merge(l []Contact, r []Contact, target ID) []Contact {
+	ret := make([]Contact, 0, len(l)+len(r))
+	for len(l) > 0 || len(r) > 0 {
+		if len(l) == 0 {
+			return append(ret, r...)
+		}
+		if len(r) == 0 {
+			return append(ret, l...)
+		}
+		if l[0].NodeID.Xor(target).PrefixLen() <= r[0].NodeID.Xor(target).PrefixLen() {
+			ret = append(ret, l[0])
+			l = l[1:]
+		} else {
+			ret = append(ret, r[0])
+			r = r[1:]
+		}
 	}
-	sort.Sort(ByDistance(contacts))
-	return contacts
+	return ret
+}
+
+func (k *Kademlia) MergeSort(s []Contact,target ID) []Contact {
+	if len(s) <= 1 {
+		return s
+	}
+	n := len(s) / 2
+	l := k.MergeSort(s[:n],target)
+	r := k.MergeSort(s[n:],target)
+	
+	return k.Merge(l, r, target)
 }
 
 // ShortlistMsg  
@@ -638,7 +663,7 @@ func (k *Kademlia) ShortlistManager(target ID) {
 				}
 				fmt.Println("after")
 				fmt.Println(active_slice)
-				active_slice = k.SortContacts(active_slice, target)
+				active_slice = k.MergeSort(active_slice, target)
 				fmt.Println("sorted")
 				fmt.Println(active_slice)
 				res.Contacts = nil
@@ -654,7 +679,7 @@ func (k *Kademlia) ShortlistManager(target ID) {
 				}
 				fmt.Println("after")
 				fmt.Println(unchecked_slice)
-				unchecked_slice = k.SortContacts(unchecked_slice, target)
+				unchecked_slice = k.MergeSort(unchecked_slice, target)
 				fmt.Println("sorted")
 				fmt.Println(unchecked_slice)
 				if len(unchecked_slice) >= (20 - len(active_slice)) {
