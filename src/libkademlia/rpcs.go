@@ -18,7 +18,7 @@ type Contact struct {
 	NodeID ID
 	Host   net.IP
 	Port   uint16
-	Distance int
+	//Distance int
 }
 
 type KBucket struct {

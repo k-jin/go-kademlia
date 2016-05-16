@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"strconv"
-	"sort"
+	//"sort"
 )
 
 const (
@@ -44,11 +44,16 @@ type VTableMsg struct {
 	Err 		error
 }
 
-type ByDistance []Contact
+// type ByDistance []Contact
 
-func (a ByDistance) Len() int           { return len(a) }
-func (a ByDistance) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByDistance) Less(i, j int) bool { return a[i].Distance < a[j].Distance }
+// func (a ByDistance) Len() int           { return len(a) }
+// func (a ByDistance) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+// func (a ByDistance) Less(i, j int) bool { 
+// 	// var ai_dist uint64 = a[i].NodeID.Xor(target).PrefixLen()
+// 	// var aj_dist uint64= a[j].NodeID.Xor(target).PrefixLen()
+// 	// return ai_dist < aj_dist
+// 	return a[i].Distance < a[j].Distance
+// }
 
 // May not be thread safe, consider adding "get/update" case
 func (k *Kademlia) KBucketsManager() {
@@ -454,13 +459,13 @@ func (k *Kademlia) LocalFindValue(searchKey ID) ([]byte, error) {
 */
 
 func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
-	selfClosest := DoFindNode(k.SelfContact, id)
-	selfClosest = SortContacts(selfClosest, id)
-	for i := 0; i < 3 {
-		go RPC find node selfClosest[i]
+	selfClosest, _ := k.DoFindNode(&k.SelfContact, id)
+	selfClosest = k.SortContacts(selfClosest, id)
+	for i := 0; i < 3; {
+		//go RPC find node selfClosest[i]
 	}
 
-	// return nil, &CommandFailed{"Not implemented"}
+	return nil, &CommandFailed{"Not implemented"}
 }
 func (k *Kademlia) DoIterativeStore(key ID, value []byte) ([]Contact, error) {
 	return nil, &CommandFailed{"Not implemented"}
@@ -469,13 +474,46 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 	return nil, &CommandFailed{"Not implemented"}
 }
 
+func (k *Kademlia) Merge(l []Contact, r []Contact, target ID) []Contact {
+	ret := make([]Contact, 0, len(l)+len(r))
+	for len(l) > 0 || len(r) > 0 {
+		if len(l) == 0 {
+			return append(ret, r...)
+		}
+		if len(r) == 0 {
+			return append(ret, l...)
+		}
+		if l[0].NodeID.Xor(target).PrefixLen() <= r[0].NodeID.Xor(target).PrefixLen() {
+			ret = append(ret, l[0])
+			l = l[1:]
+		} else {
+			ret = append(ret, r[0])
+			r = r[1:]
+		}
+	}
+	return ret
+}
+
+func (k *Kademlia) MergeSort(s []Contact,target ID) []Contact {
+	if len(s) <= 1 {
+		return s
+	}
+	n := len(s) / 2
+	l := k.MergeSort(s[:n],target)
+	r := k.MergeSort(s[n:],target)
+	
+	return k.Merge(l, r, target)
+}
+
+
 func (k *Kademlia) SortContacts(contacts []Contact, target ID) []Contact {
 	// Assign Xor distance from target ID for each contact in contacts
-	for _, contact := range contacts {
-		contact.Distance = contact.NodeID.Xor(target).PrefixLen()
-	}
-	sort.Sort(ByDistance(contacts))
-	return contacts
+	// for _, contact := range contacts {
+	// 	contact.Distance = contact.NodeID.Xor(target).PrefixLen()
+	// }
+	return k.MergeSort(contacts,target)
+	//sort.Sort(ByDistance(contacts))
+	//return contacts
 }
 
 // For project 3!
