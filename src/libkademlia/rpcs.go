@@ -39,7 +39,6 @@ type PongMessage struct {
 }
 
 func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
-	// TODO: Finish implementation
 	pong.MsgID = CopyID(ping.MsgID)
 	pong.Sender = k.kademlia.SelfContact
 
@@ -67,7 +66,6 @@ type StoreResult struct {
 }
 
 func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
-	// TODO: Implement.
 	res.MsgID = req.MsgID
 	err := k.kademlia.Update(&req.Sender)
 	if err != nil {
@@ -103,8 +101,6 @@ type FindNodeResult struct {
 }
 
 func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
-	// TODO: Implement.
-	// fmt.Println("In FindNode RPC")
 	err := k.kademlia.Update(&req.Sender)
 	if err != nil {
 		return &CommandFailed{
@@ -139,8 +135,6 @@ type FindValueResult struct {
 }
 
 func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) error {
-	// TODO: Implement.
-
 	// the key B is the the search key 
 
 	// fmt.Println("In FindValue RPC")
