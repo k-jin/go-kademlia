@@ -563,6 +563,8 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			closestActiveReq := ShortlistMsg{"get", true, nil, nil}
 			k.ShortlistReqChan <- closestActiveReq
 			closestActiveDistance := <- k.ShortlistDistanceChan
+			closestActiveRes := <- k.ShortlistResChan
+			if closestActiveRes.Err != nil { return nil, closestActiveRes.Err }
 			fmt.Println("closest active distance")
 			fmt.Println(closestActiveDistance)
 
