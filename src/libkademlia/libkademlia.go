@@ -588,7 +588,34 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 	return nil, &CommandFailed{"Value not found"}
 }
 func (k *Kademlia) DoIterativeStore(key ID, value []byte) ([]Contact, error) {
-	return nil, &CommandFailed{"Not implemented"}
+
+	closestContacts := k.DoIterativeFindNode(key)
+	var storedContacts []Contact
+	for _, contact := range closestContacts {
+		err := k.DoStore(&contact, key, value)
+		if err == nil {
+			storedContacts = append(storedContacts, contact)
+		}
+	}
+	return storedContacts, nil
+
+
+	// for {
+	// 	select {
+	// 		case message := <-resultChan :
+	// 			closestContacts := message.ResultContacts
+	// 			var storedContacts []Contact
+	// 			for _, contact := range closestContacts {
+	// 				err := k.DoStore(&contact, key, value)
+	// 				if err == nil {
+	// 					storedContacts = append(storedContacts, contact)
+	// 				}
+	// 			}
+	// 			return storedContacts, nil
+	// 	}
+	// }
+	
+	// return nil, &CommandFailed{"Not implemented"}
 }
 func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 	return nil, &CommandFailed{"Not implemented"}
