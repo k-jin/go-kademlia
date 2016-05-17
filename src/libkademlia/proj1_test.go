@@ -1,7 +1,7 @@
 package libkademlia
 
 import (
-	"bytes"
+	//"bytes"
 	"net"
 	"strconv"
 	"testing"
@@ -202,21 +202,48 @@ func TestItFindNode(t *testing.T) {
 		         
 	instance1 := NewKademlia("localhost:7894")
 	instance2 := NewKademlia("localhost:7895")
+	instance3 := NewKademlia("localhost:7896")
+	instance4 := NewKademlia("localhost:7897")
+	instance5 := NewKademlia("localhost:7898")
+	instance6 := NewKademlia("localhost:7899")
+	instance7 := NewKademlia("localhost:7900")
+	instance8 := NewKademlia("localhost:7901")
+	instance9 := NewKademlia("localhost:7902")
+	_ = NewKademlia("localhost:7903")
+
 	host2, port2, _ := StringToIpPort("localhost:7895")
+	host3, port3, _ := StringToIpPort("localhost:7896")
+	host4, port4, _ := StringToIpPort("localhost:7897")
+	host5, port5, _ := StringToIpPort("localhost:7898")
+	host6, port6, _ := StringToIpPort("localhost:7899")
+	host7, port7, _ := StringToIpPort("localhost:7900")
+	host8, port8, _ := StringToIpPort("localhost:7901")
+	host9, port9, _ := StringToIpPort("localhost:7902")
+	host10, port10, _ := StringToIpPort("localhost:7903")
+
 	instance1.DoPing(host2, port2)
+	instance2.DoPing(host3, port3)
+	instance3.DoPing(host4, port4)
+	instance4.DoPing(host5, port5)
+	instance5.DoPing(host6, port6)
+	instance6.DoPing(host7, port7)
+	instance7.DoPing(host8, port8)
+	instance8.DoPing(host9, port9)
+	instance9.DoPing(host10, port10)
+
 	// contact2, err := instance1.FindContact(instance2.NodeID)
-	_, err := instance1.FindContact(instance2.NodeID)
-	if err != nil {
-		t.Error("Instance 2's contact not found in Instance 1's contact list")
-		return
-	}
-	tree_node := make([]*Kademlia, 10)
-	for i := 0; i < 10; i++ {
-		address := "localhost:" + strconv.Itoa(7896+i)
-		tree_node[i] = NewKademlia(address)
-		host_number, port_number, _ := StringToIpPort(address)
-		instance2.DoPing(host_number, port_number)
-	}
+	// _, err := instance1.FindContact(instance2.NodeID)
+	// if err != nil {
+	// 	t.Error("Instance 2's contact not found in Instance 1's contact list")
+	// 	return
+	// }
+	// tree_node := make([]*Kademlia, 10)
+	// for i := 0; i < 10; i++ {
+	// 	address := "localhost:" + strconv.Itoa(7896+i)
+	// 	tree_node[i] = NewKademlia(address)
+	// 	host_number, port_number, _ := StringToIpPort(address)
+	// 	instance2.DoPing(host_number, port_number)
+	// }
 	key := NewRandomID()
 	contacts, err := instance1.DoIterativeFindNode(key)
 	// contacts, err := instance1.DoFindNode(contact2, key)

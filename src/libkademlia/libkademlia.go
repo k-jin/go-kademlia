@@ -589,7 +589,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 }
 func (k *Kademlia) DoIterativeStore(key ID, value []byte) ([]Contact, error) {
 
-	closestContacts := k.DoIterativeFindNode(key)
+	closestContacts, _ := k.DoIterativeFindNode(key)
 	var storedContacts []Contact
 	for _, contact := range closestContacts {
 		err := k.DoStore(&contact, key, value)
@@ -725,10 +725,10 @@ func (k *Kademlia) ShortlistManager(target ID) {
 				// if (len(active_slice) > 0) {
 				// 	fmt.Println(active_slice[0])
 				// 	res.Contacts = active_slice[0:1]
-				ShortlistDistanceChan <- minDistance
-				} else {
-					res.Err = &CommandFailed{"empty active_slice"}
-				}
+				k.ShortlistDistanceChan <- minDistance
+				// ] else {
+				// 	res.Err = &CommandFailed{"empty active_slice"}
+				// }
 			
 			} else {
 				fmt.Println("GETTING unchecked contacts")
