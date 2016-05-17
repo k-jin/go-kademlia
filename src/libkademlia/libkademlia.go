@@ -372,6 +372,7 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
 				return nil, err
 			}
 		}
+		// fmt.Println(result.Nodes)
 		return result.Nodes, nil
 	}
 
@@ -415,7 +416,7 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 func (k *Kademlia) NearestHelper(targetKey ID) (contacts []Contact, err error) {
 	bucket_id :=k.NodeID.Xor(targetKey).PrefixLen()
 
-	contacts = make([]Contact, 20, 20)
+	contacts = make([]Contact, 0)
 	ctr :=0
 	for ctr < 20 && bucket_id < 160 {
 		getReq := KBucketsMsg{Request: "get", Key: bucket_id}
@@ -428,8 +429,10 @@ func (k *Kademlia) NearestHelper(targetKey ID) (contacts []Contact, err error) {
 		bucket := getRes.Value
 	
 		for _,bucketContact := range bucket.Contacts {
-			contacts  = append(contacts, bucketContact)
-			ctr += 1
+			if bucketContact.Host != nil {
+				contacts = append(contacts, bucketContact)
+				ctr += 1
+			}
 		}
 		updateReq := KBucketsMsg{"update", bucket_id, bucket, nil}
 		k.KBucketsReqChan <- updateReq
@@ -440,6 +443,9 @@ func (k *Kademlia) NearestHelper(targetKey ID) (contacts []Contact, err error) {
 
 		bucket_id += 1
 	}
+	// fmt.Println("nearest helper")
+	// fmt.Println(contacts)
+	// fmt.Println(len(contacts))
 	return contacts, err 
 
 }
@@ -507,12 +513,24 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 	getInitReq := ShortlistMsg{"get", false, nil, nil}
 	k.ShortlistReqChan <- getInitReq
 	getInitRes := <- k.ShortlistResChan
+	emptyUnchecked := &CommandFailed{"unchecked_slice empty"}
+	if getInitRes.Err == emptyUnchecked {
+		return getInitRes.Contacts, nil
+	}
 	if getInitRes.Err != nil { return nil, getInitRes.Err }
 
 	// initialize time for timer
 	startTime := time.Now()
 	// start threads for each node we get in response
 	for _, contact := range getInitRes.Contacts {
+		// NOT SURE if this is the right way to do this,
+		// Don't think I should be adding to active before
+		if contact.NodeID == id {
+			addActive := ShortlistMsg{"add", true, []Contact{contact}, nil}
+			k.ShortlistReqChan <- addActive
+			addRes = <- k.ShortlistResChan
+			return addRes.Contacts, nil
+		}
 		goRequests[contact.NodeID] = DoItFNMsg{contact, nil, make(chan bool), false}
 		go k.DoFindNodeWrapper(goRequests[contact.NodeID].DestContact, id, resultChan, goRequests[contact.NodeID].QuitChan)
 
@@ -538,10 +556,16 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			closestActiveReq := ShortlistMsg{"get", true, nil, nil}
 			k.ShortlistReqChan <- closestActiveReq
 			closestActiveDistance := <- k.ShortlistDistanceChan
+			fmt.Println("closest active distance")
+			fmt.Println(closestActiveDistance)
 
-			if minDistance < closestActiveDistance{
+			fmt.Println("minDistance")
+			fmt.Println(minDistance)
+			if minDistance < closestActiveDistance {
 				// add result 20 nodes to unchecked
+
 				addReq := ShortlistMsg{"add", false, resultMsg.ResultContacts, nil}
+				fmt.Println(addReq)
 				k.ShortlistReqChan <- addReq
 				addRes := <- k.ShortlistResChan
 				if addRes.Err != nil { return nil, addRes.Err }
@@ -557,6 +581,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 		default:
 			cycleOver := false
 			if time.Now().Sub(startTime) >= 300 * time.Millisecond {
+				fmt.Println("timeout")
 				for _, msg := range goRequests {
 					msg.QuitChan <- true
 				}
@@ -568,17 +593,27 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 				}
 			}
 			if cycleOver {
+				fmt.Println("new cycle")
 				goRequests := make(map[ID]DoItFNMsg)
 				// get the 3 lowest unchecked nodes from the shortlist manager
 				getInitReq := ShortlistMsg{"get", false, nil, nil}
 				k.ShortlistReqChan <- getInitReq
 				getInitRes := <- k.ShortlistResChan
+				if getInitRes.Err == emptyUnchecked {
+					return getInitRes.Contacts, nil
+				}
 				if getInitRes.Err != nil { return nil, getInitRes.Err}
 				// initialize time for timer
 				startTime = time.Now()
 
 				// start threads for each node we get in response
 				for _, contact := range getInitRes.Contacts {
+					if contact.NodeID == id {
+						addActive := ShortlistMsg{"add", true, []Contact{contact}, nil}
+						k.ShortlistReqChan <- addActive
+						addRes = <- k.ShortlistResChan
+						return addRes.Contacts, nil
+					}
 					goRequests[contact.NodeID] = DoItFNMsg{contact, nil, make(chan bool), false}
 					go k.DoFindNodeWrapper(goRequests[contact.NodeID].DestContact, id, resultChan, goRequests[contact.NodeID].QuitChan)
 				}				
@@ -659,106 +694,99 @@ func (k *Kademlia) MergeSort(s []Contact,target ID) []Contact {
 // "add" active==false - put values into the unchecked slice
 
 func (k *Kademlia) ShortlistManager(target ID) {
-	// // These are arrays that are the bases for the slice versions
-	// var active_arr [32]Contact
-	// var unchecked_arr [128]Contact
-
-	// These are the slices
-	// active_slice := active_arr[0:0]
-	// unchecked_slice := unchecked_arr[:40]
-
 	active_slice := make([]Contact, 0)
 	unchecked_slice := make([]Contact, 0)
 	minDistance := math.MaxInt32
 	for {
-		req := <- k.ShortlistReqChan
-		var res ShortlistMsg
-		res = req
-		res.Request = res.Request + " response"
-		res.Err = nil
-		fmt.Println("ShortlistManager Request")
-		fmt.Println("Request Type: ", req.Request)
-		fmt.Println("Active? ", req.Active)
-		fmt.Println("Contacts: ", req.Contacts)
-		// Add or get requests
-		if req.Request == "add" {
-			//TODO:  Update and maintain the minDistance
-			// add to active or to unchecked slice
-			if req.Active {
-				fmt.Println("ADDING to active_slice: before")
-				fmt.Println(active_slice)
-				for _, contact:= range res.Contacts {
-					active_slice = append(active_slice, contact)
-				}
-				fmt.Println("after")
-				fmt.Println(active_slice)
-				active_slice = k.MergeSort(active_slice, target)
-				fmt.Println("sorted")
-				fmt.Println(active_slice)
-				res.Contacts = nil
-				if len(active_slice) >= 20 {
-					active_slice = active_slice[:20]
-					res.Contacts = active_slice
-				} 
-			} else {
-				fmt.Println("ADDING to unchecked_slice: before")
-				fmt.Println(unchecked_slice)
-				for _, contact:= range res.Contacts {
-					unchecked_slice = append(unchecked_slice, contact)
-				}
-				fmt.Println("after")
-				fmt.Println(unchecked_slice)
-				unchecked_slice = k.MergeSort(unchecked_slice, target)
-				fmt.Println("sorted")
-				fmt.Println(unchecked_slice)
-				if len(unchecked_slice) >= (20 - len(active_slice)) {
-					fmt.Println("ACTIVE SLICE length", len(active_slice))
-					unchecked_slice = unchecked_slice[:(20-len(active_slice) + 1)]
-				}
-				fmt.Println("truncated")
-				fmt.Println(unchecked_slice)
-				res.Contacts = unchecked_slice
-			}
-		} else if req.Request == "get" {
-			if req.Active {
-				fmt.Println("GETTING closest active contact")
-				// if (len(active_slice) > 0) {
-				// 	fmt.Println(active_slice[0])
-				// 	res.Contacts = active_slice[0:1]
-				k.ShortlistDistanceChan <- minDistance
-				// ] else {
-				// 	res.Err = &CommandFailed{"empty active_slice"}
-				// }
-			
-			} else {
-				fmt.Println("GETTING unchecked contacts")
-				if len(unchecked_slice) >= 3 {
-					fmt.Println(unchecked_slice[:3])
-					res.Contacts = unchecked_slice[:3]
-					unchecked_slice = unchecked_slice[3:]
-				} else if len(unchecked_slice) == 2 {
-					fmt.Println(unchecked_slice[:2])
-					res.Contacts = unchecked_slice[:2]
-					unchecked_slice = unchecked_slice[2:]
-				} else if len(unchecked_slice) == 1 {
-					fmt.Println(unchecked_slice[:1])
-					res.Contacts = unchecked_slice[:1]
-					unchecked_slice = unchecked_slice[1:]
+		select {
+			case req := <- k.ShortlistReqChan:
+				var res ShortlistMsg
+				res = req
+				res.Request = res.Request + " response"
+				res.Err = nil
+				fmt.Println("ShortlistManager Request")
+				fmt.Println("Request Type: ", req.Request)
+				fmt.Println("Active? ", req.Active)
+				fmt.Println("Contacts: ", req.Contacts)
+				// Add or get requests
+				if req.Request == "add" {
+					// add to active or to unchecked slice
+					if req.Active {
+						fmt.Println("ADDING to active_slice: before")
+						fmt.Println(active_slice)
+						for _, contact:= range res.Contacts {
+							active_slice = append(active_slice, contact)
+						}
+						fmt.Println("after")
+						fmt.Println(active_slice)
+						active_slice = k.MergeSort(active_slice, target)
+						fmt.Println("sorted")
+						fmt.Println(active_slice)
+						minDistance = active_slice[0].NodeID.Xor(target).PrefixLen()
+						fmt.Println("updated min")
+						fmt.Println(minDistance)
+						if len(active_slice) >= 20 {
+							active_slice = active_slice[:20]
+						} 
+						res.Contacts = active_slice			
+					} else {
+						// fmt.Println("ADDING to unchecked_slice: before")
+						// fmt.Println(unchecked_slice)
+						for _, contact:= range res.Contacts {
+							if contact.Host != nil {
+								fmt.Println("adding contact to unchecked")
+								fmt.Println(contact)
+								unchecked_slice = append(unchecked_slice, contact)
+							}
+						}
+						// fmt.Println("after")
+						// fmt.Println(unchecked_slice)
+						unchecked_slice = k.MergeSort(unchecked_slice, target)
+						// fmt.Println("sorted")
+						// fmt.Println(unchecked_slice)
+						if len(unchecked_slice) >= (20 - len(active_slice)) {
+							// fmt.Println("ACTIVE SLICE length", len(active_slice))
+							unchecked_slice = unchecked_slice[:(20-len(active_slice) + 1)]
+						}
+						// fmt.Println("truncated")
+						// fmt.Println(unchecked_slice)
+						res.Contacts = unchecked_slice
+					}
+				} else if req.Request == "get" {
+					if req.Active {
+						fmt.Println("GETTING closest active contact")
+						k.ShortlistDistanceChan <- minDistance			
+					} else {
+						fmt.Println("GETTING unchecked contacts")
+						if len(unchecked_slice) >= 3 {
+							fmt.Println(unchecked_slice[:3])
+							res.Contacts = unchecked_slice[:3]
+							unchecked_slice = unchecked_slice[3:]
+						} else if len(unchecked_slice) == 2 {
+							fmt.Println(unchecked_slice[:2])
+							res.Contacts = unchecked_slice[:2]
+							unchecked_slice = unchecked_slice[2:]
+						} else if len(unchecked_slice) == 1 {
+							fmt.Println(unchecked_slice[:1])
+							res.Contacts = unchecked_slice[:1]
+							unchecked_slice = unchecked_slice[1:]
+						} else {
+							fmt.Println("ERROR unchecked_slice empty")
+							res.Contacts = active_slice
+							res.Err = &CommandFailed{"unchecked_slice empty"}
+						}
+					}
 				} else {
-					fmt.Println("ERROR unchecked_slice empty")
-					res.Err = &CommandFailed{"unchecked_slice empty"}
+					res.Err = &CommandFailed{"Improper request"}
 				}
-			}
-		} else {
-			res.Err = &CommandFailed{"Improper request"}
+				k.ShortlistResChan <- res
 		}
-		k.ShortlistResChan <- res
+		
 	}
 }
 
 func (k *Kademlia) DoFindNodeWrapper(contact Contact, target ID, resChan chan DoItFNMsg, quitChan chan bool) {
-	var base_arr = [20]Contact{}
-	slice_results := base_arr[:]
+	slice_results := make([]Contact, 0)
 	results,_ := k.DoFindNode(&contact, target)
 	for _, item := range results {
 		slice_results = append(slice_results, item)
