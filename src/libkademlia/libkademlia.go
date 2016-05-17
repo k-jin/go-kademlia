@@ -186,7 +186,7 @@ func (k *Kademlia) Update(contact *Contact) error {
 	if contact.NodeID == k.SelfContact.NodeID {
 		return nil
 	}
-	bucket_id := contact.NodeID.Xor(k.SelfContact.NodeID).PrefixLen()
+	bucket_id := 159 - contact.NodeID.Xor(k.SelfContact.NodeID).PrefixLen()
 	getReq := KBucketsMsg{Request: "get", Key: bucket_id}
 	k.KBucketsReqChan <- getReq
 	getRes := <- k.KBucketsResChan
@@ -251,7 +251,7 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 		return &k.SelfContact, nil
 	}
 
-	bucket_id := nodeId.Xor(k.SelfContact.NodeID).PrefixLen()
+	bucket_id := 159 - nodeId.Xor(k.SelfContact.NodeID).PrefixLen()
 	getReq := KBucketsMsg{Request: "get", Key: bucket_id}
 	k.KBucketsReqChan <- getReq
 	getRes := <- k.KBucketsResChan
@@ -320,7 +320,6 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 
 
 func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
-	// TODO: Implement
 	address := fmt.Sprintf("%s:%v", contact.Host.String(), contact.Port)
 	portStr := fmt.Sprintf("%v", contact.Port)
 
@@ -414,7 +413,7 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 	
 }
 func (k *Kademlia) NearestHelper(targetKey ID) (contacts []Contact, err error) {
-	bucket_id :=k.NodeID.Xor(targetKey).PrefixLen()
+	bucket_id := 159 - k.NodeID.Xor(targetKey).PrefixLen()
 
 	contacts = make([]Contact, 0)
 	ctr :=0
@@ -548,7 +547,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			// Find the shortest distance node within the results
 			var minDistance = math.MaxInt32
 			for _, contact := range resultMsg.ResultContacts {
-				currDistance := contact.NodeID.Xor(id).PrefixLen()
+				currDistance := 159 - contact.NodeID.Xor(id).PrefixLen()
 				if currDistance < minDistance {
 					minDistance = currDistance
 				}
@@ -665,7 +664,7 @@ func (k *Kademlia) Merge(l []Contact, r []Contact, target ID) []Contact {
 		if len(r) == 0 {
 			return append(ret, l...)
 		}
-		if l[0].NodeID.Xor(target).PrefixLen() <= r[0].NodeID.Xor(target).PrefixLen() {
+		if 159 - l[0].NodeID.Xor(target).PrefixLen() <= 159 - r[0].NodeID.Xor(target).PrefixLen() {
 			ret = append(ret, l[0])
 			l = l[1:]
 		} else {
@@ -722,7 +721,7 @@ func (k *Kademlia) ShortlistManager(target ID) {
 						active_slice = k.MergeSort(active_slice, target)
 						fmt.Println("sorted")
 						fmt.Println(active_slice)
-						minDistance = active_slice[0].NodeID.Xor(target).PrefixLen()
+						minDistance = 159 - active_slice[0].NodeID.Xor(target).PrefixLen()
 						fmt.Println("updated min")
 						fmt.Println(minDistance)
 						if len(active_slice) >= 20 {
