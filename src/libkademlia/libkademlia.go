@@ -66,6 +66,7 @@ type DoItFNMsg struct {
 	CurrentCycle	bool
 	Done 			bool
 	TooFar			bool
+	Err 			error
 }
 
 // Struct for DoIterativeFindValue
@@ -537,12 +538,15 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 	startTime := time.Now()
 	// start threads for each node we get in response
 	for _, contact := range getInitRes.Contacts {
-		goRequests[contact.NodeID] = DoItFNMsg{contact, nil, true, false, false}
+		goRequests[contact.NodeID] = DoItFNMsg{contact, nil, true, false, false, nil}
 		go k.DoFindNodeWrapper(goRequests[contact.NodeID].DestContact, id, resultChan)
 	}
 	for {
 		select {
 		case resultMsg := <- resultChan:
+			if resultMsg.Err != nil {
+				return nil, resultMsg.Err
+			}
 			responseContact := resultMsg.DestContact
 			currMsg := goRequests[responseContact.NodeID]
 			currMsg.Done = true
@@ -553,9 +557,8 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			// fmt.Println("result msg contacts")
 			// fmt.Println(resultMsg.ResultContacts)
 			for _, contact := range resultMsg.ResultContacts {
-				fmt.Print("distance from %v", contact.NodeID)
-				fmt.Print(" to %v is ", id)
-				
+				fmt.Print("distance from ", contact.NodeID)
+				fmt.Print(" to ", id, " is ")
 				currDistance := contact.NodeID.Xor(id).PrefixLen()
 				fmt.Println(currDistance)
 				if currDistance < minDistance {
@@ -566,8 +569,6 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			k.ShortlistReqChan <- closestActiveReq
 			closestActiveRes := <- k.ShortlistResChan
 			if closestActiveRes.Err != nil { return nil, closestActiveRes.Err }
-			// fmt.Println("closestActiveRes")
-			// fmt.Println(closestActiveRes)
 			if len(closestActiveRes.Contacts) > 0 {
 				closestActiveDistance = closestActiveRes.Contacts[0].NodeID.Xor(id).PrefixLen()
 			}
@@ -576,7 +577,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 
 			fmt.Println("minDistance")
 			fmt.Println(minDistance)
-			// TODO related to the one in the else statement, have a field setting whether all are too short or not
+			//TODO verify distance is working properly, figure out what's going on for distance
 			if minDistance <= closestActiveDistance {
 				fmt.Println("ENTERING minDistance < closestActiveDistance")
 				// add result 20 nodes to unchecked
@@ -596,8 +597,6 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 				}
 			} else {
 				currMsg.TooFar = true
-				//TODO: we should wait until end of cycle before returning
-
 			}
 			goRequests[responseContact.NodeID] = currMsg
 		default:
@@ -657,7 +656,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 
 					// start threads for each node we get in response
 					for _, contact := range getInitRes.Contacts {
-						goRequests[contact.NodeID] = DoItFNMsg{contact, nil, true, false, false}
+						goRequests[contact.NodeID] = DoItFNMsg{contact, nil, true, false, false, nil}
 						go k.DoFindNodeWrapper(goRequests[contact.NodeID].DestContact, id, resultChan)
 					}				
 				}
@@ -982,11 +981,11 @@ func (k *Kademlia) ShortlistManager(target ID) {
 
 func (k *Kademlia) DoFindNodeWrapper(contact Contact, target ID, resChan chan DoItFNMsg) {
 	slice_results := make([]Contact, 0)
-	results,_ := k.DoFindNode(&contact, target)
+	results,error := k.DoFindNode(&contact, target)
 	for _, item := range results {
 		slice_results = append(slice_results, item)
 	}
-	resChan <- DoItFNMsg{contact, slice_results[:], true, true, false}
+	resChan <- DoItFNMsg{contact, slice_results[:], true, true, false, error}
 	return
 
 }
