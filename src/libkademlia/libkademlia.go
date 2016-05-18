@@ -63,6 +63,7 @@ type DoItFNMsg struct {
 	ResultContacts	[]Contact
 	CurrentCycle	bool
 	Done 			bool
+	TooFar			bool
 }
 
 // Struct for DoIterativeFindValue
@@ -476,6 +477,15 @@ func Min(x, y int) int {
 	}
 }
 
+func ContactExists(target Contact, contacts []Contact) bool {
+	for _, contact := range contacts {
+		if contact == target {
+			return true
+		}
+	}
+	return false
+}
+
 /*
 	Shortlist 
 
@@ -525,7 +535,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 	sliceBound := Min(3, len(getInitRes.Contacts))
 	// start threads for each node we get in response
 	for _, contact := range getInitRes.Contacts[:sliceBound] {
-		goRequests[contact.NodeID] = DoItFNMsg{contact, nil, true, false}
+		goRequests[contact.NodeID] = DoItFNMsg{contact, nil, true, false, false}
 		go k.DoFindNodeWrapper(goRequests[contact.NodeID].DestContact, id, resultChan)
 	}
 	for {
@@ -534,7 +544,6 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			responseContact := resultMsg.DestContact
 			currMsg := goRequests[responseContact.NodeID]
 			currMsg.Done = true
-			goRequests[responseContact.NodeID] = currMsg
 
 			// Find the shortest distance node within the results
 			minDistance := math.MaxInt32
@@ -579,47 +588,57 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 					return addActiveRes.Contacts, nil
 				}
 			} else {
+				currMsg.TooFar = true
 				//TODO: we should wait until end of cycle before returning
-				getReq := ShortlistMsg{"get", true, nil, nil}
-				k.ShortlistReqChan <- getReq
-				getRes := <- k.ShortlistResChan
-				if getRes.Err != nil { return nil, getRes.Err }
-				fmt.Println("no more closer")
-				fmt.Println(getRes.Contacts)
-				return getRes.Contacts, nil
+
 			}
+			goRequests[responseContact.NodeID] = currMsg
 		default:
 			cycleOver := false
+			noCloser := false
 			if time.Now().Sub(startTime) >= 300 * time.Millisecond {
 				fmt.Println("timeout")
 				cycleOver = true
 			} else {
 				cycleOver = true
+				noCloser = true
 				for _, msg := range goRequests {
 					if msg.CurrentCycle {
 						cycleOver = cycleOver && msg.Done
+						noCloser = noCloser && msg.TooFar
 					}
 				}
 			}
 			if cycleOver {
-				fmt.Println("new cycle")
-				for _, msg := range goRequests {
-					msg.CurrentCycle = false
-				}
-				// get the 3 lowest unchecked nodes from the shortlist manager
-				getInitReq := ShortlistMsg{"get", false, nil, nil}
-				k.ShortlistReqChan <- getInitReq
-				getInitRes := <- k.ShortlistResChan
-				if getInitRes.Err != nil { return nil, getInitRes.Err}
-				// initialize time for timer
-				startTime = time.Now()
+				if noCloser {
+					getReq := ShortlistMsg{"get", true, nil, nil}
+					k.ShortlistReqChan <- getReq
+					getRes := <- k.ShortlistResChan
+					if getRes.Err != nil { return nil, getRes.Err }
+					fmt.Println("no more closer")
+					fmt.Println(getRes.Contacts)
+					return getRes.Contacts, nil
+				} else {
+					fmt.Println("new cycle")
+					for _, msg := range goRequests {
+						msg.CurrentCycle = false
+					}
+					// get the 3 lowest unchecked nodes from the shortlist manager
+					getInitReq := ShortlistMsg{"get", false, nil, nil}
+					k.ShortlistReqChan <- getInitReq
+					getInitRes := <- k.ShortlistResChan
+					if getInitRes.Err != nil { return nil, getInitRes.Err}
+					// initialize time for timer
+					startTime = time.Now()
 
-				// start threads for each node we get in response
-				sliceBound := Min(3, len(getInitRes.Contacts))
-				for _, contact := range getInitRes.Contacts[:sliceBound] {
-					goRequests[contact.NodeID] = DoItFNMsg{contact, nil, true, false}
-					go k.DoFindNodeWrapper(goRequests[contact.NodeID].DestContact, id, resultChan)
-				}				
+					// start threads for each node we get in response
+					sliceBound := Min(3, len(getInitRes.Contacts))
+					for _, contact := range getInitRes.Contacts[:sliceBound] {
+						goRequests[contact.NodeID] = DoItFNMsg{contact, nil, true, false, false}
+						go k.DoFindNodeWrapper(goRequests[contact.NodeID].DestContact, id, resultChan)
+					}				
+				}
+				
 			}
 		}
 	}
@@ -872,28 +891,32 @@ func (k *Kademlia) ShortlistManager(target ID) {
 				if req.Request == "add" {
 					// add to active or to unchecked slice
 					if req.Active {
-						// fmt.Println("ADDING to active_slice: before")
+						fmt.Println("ADDING to active_slice: before")
 						// fmt.Println(active_slice)
 						for _, contact:= range res.Contacts {
-							active_slice = append(active_slice, contact)
+							if !ContactExists(contact, active_slice){
+								active_slice = append(active_slice, contact)
+							}
 						}
 						// fmt.Println("after")
 						// fmt.Println(active_slice)
 						active_slice = k.MergeSort(active_slice, target)
 						// fmt.Println("sorted")
-						// fmt.Println(active_slice)
+						fmt.Println(active_slice)
 						if len(active_slice) >= 20 {
 							active_slice = active_slice[:20]
 						} 
 						res.Contacts = active_slice	
 					} else {
-						// fmt.Println("ADDING to unchecked_slice: before")
+						fmt.Println("ADDING to unchecked_slice: before")
 						// fmt.Println(unchecked_slice)
 						for _, contact:= range res.Contacts {
 							if contact.Host != nil {
 								// fmt.Println("adding contact to unchecked")
 								// fmt.Println(contact)
-								unchecked_slice = append(unchecked_slice, contact)
+								if !ContactExists(contact, unchecked_slice){
+									unchecked_slice = append(unchecked_slice, contact)
+								}
 							}
 						}
 						// fmt.Println("after")
@@ -906,7 +929,7 @@ func (k *Kademlia) ShortlistManager(target ID) {
 							unchecked_slice = unchecked_slice[:(20-len(active_slice) + 1)]
 						}
 						// fmt.Println("truncated")
-						// fmt.Println(unchecked_slice)
+						fmt.Println(unchecked_slice)
 						res.Contacts = unchecked_slice
 					}
 				} else if req.Request == "get" {
@@ -933,7 +956,7 @@ func (k *Kademlia) DoFindNodeWrapper(contact Contact, target ID, resChan chan Do
 	for _, item := range results {
 		slice_results = append(slice_results, item)
 	}
-	resChan <- DoItFNMsg{contact, slice_results[:], true, true}
+	resChan <- DoItFNMsg{contact, slice_results[:], true, true, false}
 	return
 
 }
