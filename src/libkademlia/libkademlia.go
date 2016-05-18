@@ -76,6 +76,7 @@ type DoItFVMsg struct {
 	Value           []byte
 	CurrentCycle	bool
 	Done 			bool
+	TooFar			bool
 	Err             error
 }
 
@@ -724,10 +725,9 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 
 	// initialize time for timer
 	startTime := time.Now()
-	sliceBound := Min(3, len(getInitRes.Contacts))
 	// start threads for each node we get in response
-	for _, contact := range getInitRes.Contacts[:sliceBound] {
-		goRequests[contact.NodeID] = DoItFVMsg{contact, nil, value, true, false, nil}
+	for _, contact := range getInitRes.Contacts {
+		goRequests[contact.NodeID] = DoItFVMsg{contact, nil, value, true, false, false, nil}
 		go k.DoFindValueWrapper(goRequests[contact.NodeID].DestContact, key, resultChan)
 	}
 	for {
@@ -759,7 +759,6 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 			responseContact := resultMsg.DestContact
 			currMsg := goRequests[responseContact.NodeID]
 			currMsg.Done = true
-			goRequests[responseContact.NodeID] = currMsg
 
 			// Find the shortest distance node within the results
 			minDistance := math.MaxInt32
@@ -787,7 +786,7 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 			// fmt.Println("minDistance")
 			// fmt.Println(minDistance)
 			// TODO related to the one in the else statement, have a field setting whether all are too short or not
-			if minDistance < closestActiveDistance {
+			if minDistance <= closestActiveDistance {
 				// add result 20 nodes to unchecked
 				addUncheckedReq := ShortlistMsg{"add", false, resultMsg.ResultContacts, nil}
 				k.ShortlistReqChan <- addUncheckedReq
@@ -808,50 +807,71 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 					}
 				}
 			} else {
-				//TODO: we should wait until end of cycle before returning
-				getReq := ShortlistMsg{"get", true, nil, nil}
-				k.ShortlistReqChan <- getReq
-				getRes := <- k.ShortlistResChan
-				if getRes.Err != nil { return nil, getRes.Err }
-				fmt.Println("no more closer")
-				fmt.Println(getRes.Contacts)
-				if len(getRes.Contacts) > 0 {
-					return nil, &CommandFailed{fmt.Sprintf("Closest Active Node is: %v", getRes.Contacts[0])}				
-				} else {
-					return nil, &CommandFailed{fmt.Sprintf("No Active Nodes")}
-				}			
+				currMsg.TooFar = true
 			}
+			goRequests[responseContact.NodeID] = currMsg
+
 		default:
 			cycleOver := false
+			noCloser := false
 			if time.Now().Sub(startTime) >= 300 * time.Millisecond {
 				fmt.Println("timeout")
 				cycleOver = true
 			} else {
 				cycleOver = true
+				noCloser = true
 				for _, msg := range goRequests {
 					if msg.CurrentCycle {
 						cycleOver = cycleOver && msg.Done
+						noCloser = noCloser && msg.TooFar
 					}
 				}
 			}
 			if cycleOver {
-				fmt.Println("new cycle")
-				for _, msg := range goRequests {
-					msg.CurrentCycle = false
-				}
-				// get the 3 lowest unchecked nodes from the shortlist manager
-				getInitReq := ShortlistMsg{"get", false, nil, nil}
-				k.ShortlistReqChan <- getInitReq
-				getInitRes := <- k.ShortlistResChan
-				if getInitRes.Err != nil { return nil, getInitRes.Err}
-				// initialize time for timer
-				startTime = time.Now()
+				if noCloser {
+					getReq := ShortlistMsg{"get", true, nil, nil}
+					k.ShortlistReqChan <- getReq
+					getRes := <- k.ShortlistResChan
+					if getRes.Err != nil { return nil, getRes.Err }
+					fmt.Println("no more closer")
+					fmt.Println(getRes.Contacts)
+					if len(getRes.Contacts) > 0 {
+						return nil, &CommandFailed{fmt.Sprintf("Closest Active Node is: %v", getRes.Contacts[0])}				
+					} else {
+						return nil, &CommandFailed{fmt.Sprintf("No Active Nodes")}
+					}			
+				} else {
+					fmt.Println("new cycle")
+					for _, msg := range goRequests {
+						msg.CurrentCycle = false
+					}
+					// get the 3 lowest unchecked nodes from the shortlist manager
+					getInitReq := ShortlistMsg{"get", false, nil, nil}
+					k.ShortlistReqChan <- getInitReq
+					getInitRes := <- k.ShortlistResChan
+					if getInitRes.Err != nil { return nil, getInitRes.Err}
+					// initialize time for timer
+					if len(getInitRes.Contacts) == 0 {
+						getReq := ShortlistMsg{"get", true, nil, nil}
+						k.ShortlistReqChan <- getReq
+						getRes := <- k.ShortlistResChan
+						if getRes.Err != nil { return nil, getRes.Err }
+						fmt.Println("checked all nodes")
+						fmt.Println(getRes.Contacts)
+						if len(getRes.Contacts) > 0 {
+							return nil, &CommandFailed{fmt.Sprintf("Closest Active Node is: %v", getRes.Contacts[0])}				
+						} else {
+							return nil, &CommandFailed{fmt.Sprintf("No Active Nodes")}
+						}	
+					}
+					startTime = time.Now()
 
-				// start threads for each node we get in response
-				sliceBound := Min(3, len(getInitRes.Contacts))
-				for _, contact := range getInitRes.Contacts[:sliceBound] {
-					goRequests[contact.NodeID] = DoItFVMsg{contact, nil, nil, true, false, nil}
-					go k.DoFindValueWrapper(goRequests[contact.NodeID].DestContact, key, resultChan)
+					// start threads for each node we get in response
+					for _, contact := range getInitRes.Contacts {
+						goRequests[contact.NodeID] = DoItFVMsg{contact, nil, nil, true, false, false, nil}
+						go k.DoFindValueWrapper(goRequests[contact.NodeID].DestContact, key, resultChan)
+
+					}
 				}				
 			}
 		}
@@ -994,12 +1014,12 @@ func (k *Kademlia) DoFindValueWrapper(contact Contact, target ID, resChan chan D
 	slice_results := make([]Contact, 0)
 	value, closestContacts, error := k.DoFindValue(&contact, target)
 	if value != nil {
-		resChan <- DoItFVMsg{contact, nil, value, true, true, error}
+		resChan <- DoItFVMsg{contact, nil, value, true, true, false, error}
 	} else {
 		for _, item := range closestContacts {
 			slice_results = append(slice_results, item)
 		}
-		resChan <- DoItFVMsg{contact, slice_results[:], nil, true, true, error}
+		resChan <- DoItFVMsg{contact, slice_results[:], nil, true, true, false, error}
 	}
 	return
 }
