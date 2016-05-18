@@ -508,8 +508,9 @@ func ContactExists(target Contact, contacts []Contact) bool {
 					update closestNode, only keep the first 20-len(active) in unchecked, remove rest
 
 */
-// TODO: for end conditions, shortlist unchecked is being repopulated by same thing over and over again
+// TODO: 
 // Make sure distance comparison is working properly
+// ClosestNode check should be with the closest of BOTH active and unchecked nodes
 
 func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 	// setup shortlist manager for accessing active and inactive shortlist items
