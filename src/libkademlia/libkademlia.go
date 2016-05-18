@@ -760,7 +760,11 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 				if len(addActiveRes.Contacts) == 20 {
 					fmt.Println("full active shortlist")
 					fmt.Println(addActiveRes.Contacts)
-					return nil, &CommandFailed{fmt.Sprintf("Closest Active Node is: %v", addActiveRes.Contacts[0])}
+					if len(addActiveRes.Contacts) > 0 {
+						return nil, &CommandFailed{fmt.Sprintf("Closest Active Node is: %v", addActiveRes.Contacts[0])}				
+					} else {
+						return nil, &CommandFailed{fmt.Sprintf("No Active Nodes")}
+					}
 				}
 			} else {
 				//TODO: we should wait until end of cycle before returning
@@ -770,7 +774,11 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 				if getRes.Err != nil { return nil, getRes.Err }
 				fmt.Println("no more closer")
 				fmt.Println(getRes.Contacts)
-				return nil, &CommandFailed{fmt.Sprintf("Closest Active Node is: %v", getRes.Contacts[0])}			
+				if len(getRes.Contacts) > 0 {
+					return nil, &CommandFailed{fmt.Sprintf("Closest Active Node is: %v", getRes.Contacts[0])}				
+				} else {
+					return nil, &CommandFailed{fmt.Sprintf("No Active Nodes")}
+				}			
 			}
 		default:
 			cycleOver := false
