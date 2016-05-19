@@ -11,7 +11,6 @@ import (
 	"net/rpc"
 	"strconv"
 	"time"
-	"math"
 	"os"
 	"bufio"
 )
@@ -511,6 +510,7 @@ func ContactExists(target Contact, contacts []Contact) bool {
 // TODO: 
 // Make sure distance comparison is working properly
 // ClosestNode check should be with the closest of BOTH active and unchecked nodes
+// Try to fill the active shortlist when we break end conditions
 
 func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 	// setup shortlist manager for accessing active and inactive shortlist items
@@ -554,8 +554,8 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			currMsg.Done = true
 
 			// Find the shortest distance node within the results
-			minDistance := math.MaxInt32
-			closestActiveDistance := math.MaxInt32
+			minDistance := 200
+			closestShortlistDistance := 200
 			// fmt.Println("result msg contacts")
 			// fmt.Println(resultMsg.ResultContacts)
 			for _, contact := range resultMsg.ResultContacts {
@@ -572,15 +572,28 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			closestActiveRes := <- k.ShortlistResChan
 			if closestActiveRes.Err != nil { return nil, closestActiveRes.Err }
 			if len(closestActiveRes.Contacts) > 0 {
+
 				closestActiveDistance = 159 - closestActiveRes.Contacts[0].NodeID.Xor(id).PrefixLen()
+
 			}
-			fmt.Println("closest active distance")
-			fmt.Println(closestActiveDistance)
+
+			closestUncheckedReq := ShortlistMsg{"get", false, nil, nil}
+			k.ShortlistReqChan <- closestUncheckedReq
+			closestUncheckedRes := <- k.ShortlistResChan
+			if closestUncheckedRes.Err != nil { return nil, closestUncheckedRes.Err }
+			if len(closestUncheckedRes.Contacts) > 0 {
+				currDistance := closestUncheckedRes.Contacts[0].NodeID.Xor(id).PrefixLen()
+				if currDistance < closestShortlistDistance {
+					closestShortlistDistance = currDistance
+				}
+			}
+			fmt.Println("closest shortlist distance")
+			fmt.Println(closestShortlistDistance)
 
 			fmt.Println("minDistance")
 			fmt.Println(minDistance)
 			//TODO verify distance is working properly, figure out what's going on for distance
-			if minDistance <= closestActiveDistance {
+			if minDistance <= closestShortlistDistance {
 				fmt.Println("ENTERING minDistance < closestActiveDistance")
 				// add result 20 nodes to unchecked
 				addUncheckedReq := ShortlistMsg{"add", false, resultMsg.ResultContacts, nil}
@@ -762,8 +775,8 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 			currMsg.Done = true
 
 			// Find the shortest distance node within the results
-			minDistance := math.MaxInt32
-			closestActiveDistance := math.MaxInt32
+			minDistance := 200
+			closestShortlistDistance := 200
 			// fmt.Println("result msg contacts")
 			// fmt.Println(resultMsg.ResultContacts)
 			for _, contact := range resultMsg.ResultContacts {
@@ -780,14 +793,27 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 			// fmt.Println(closestActiveRes)
 			if len(closestActiveRes.Contacts) > 0 {
 				closestActiveDistance = 159 - closestActiveRes.Contacts[0].NodeID.Xor(key).PrefixLen()
+
 			}
+			closestUncheckedReq := ShortlistMsg{"get", false, nil, nil}
+			k.ShortlistReqChan <- closestUncheckedReq
+			closestUncheckedRes := <- k.ShortlistResChan
+			if closestUncheckedRes.Err != nil { return nil, closestUncheckedRes.Err }
+			if len(closestUncheckedRes.Contacts) > 0 {
+				currDistance := 159 - closestUncheckedRes.Contacts[0].NodeID.Xor(key).PrefixLen()
+				if currDistance < closestShortlistDistance {
+					closestShortlistDistance = currDistance
+				}
+			}
+			// fmt.Println("closest shortlist distance")
+			// fmt.Println(closestShortlistDistance)
 			// fmt.Println("closest active distance")
 			// fmt.Println(closestActiveDistance)
 
 			// fmt.Println("minDistance")
 			// fmt.Println(minDistance)
 			// TODO related to the one in the else statement, have a field setting whether all are too short or not
-			if minDistance <= closestActiveDistance {
+			if minDistance <= closestShortlistDistance {
 				// add result 20 nodes to unchecked
 				addUncheckedReq := ShortlistMsg{"add", false, resultMsg.ResultContacts, nil}
 				k.ShortlistReqChan <- addUncheckedReq
