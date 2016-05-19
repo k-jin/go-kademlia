@@ -188,7 +188,7 @@ func (k *Kademlia) Update(contact *Contact) error {
 	if contact.NodeID == k.SelfContact.NodeID {
 		return nil
 	}
-	bucket_id := contact.NodeID.Xor(k.SelfContact.NodeID).PrefixLen()
+	bucket_id := 159 - contact.NodeID.Xor(k.SelfContact.NodeID).PrefixLen()
 	getReq := KBucketsMsg{Request: "get", Key: bucket_id}
 	k.KBucketsReqChan <- getReq
 	getRes := <- k.KBucketsResChan
@@ -253,7 +253,7 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 		return &k.SelfContact, nil
 	}
 
-	bucket_id := nodeId.Xor(k.SelfContact.NodeID).PrefixLen()
+	bucket_id := 159 - nodeId.Xor(k.SelfContact.NodeID).PrefixLen()
 	getReq := KBucketsMsg{Request: "get", Key: bucket_id}
 	k.KBucketsReqChan <- getReq
 	getRes := <- k.KBucketsResChan
@@ -417,7 +417,7 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 	
 }
 func (k *Kademlia) NearestHelper(targetKey ID) (contacts []Contact, err error) {
-	bucket_id :=k.NodeID.Xor(targetKey).PrefixLen()
+	bucket_id :=159 - k.NodeID.Xor(targetKey).PrefixLen()
 
 	contacts = make([]Contact, 0)
 	ctr := 0
@@ -561,7 +561,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			for _, contact := range resultMsg.ResultContacts {
 				fmt.Print("distance from ", contact.NodeID)
 				fmt.Print(" to ", id, " is ")
-				currDistance := contact.NodeID.Xor(id).PrefixLen()
+				currDistance := 159 - contact.NodeID.Xor(id).PrefixLen()
 				fmt.Println(currDistance)
 				if currDistance < minDistance {
 					minDistance = currDistance
@@ -572,7 +572,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			closestActiveRes := <- k.ShortlistResChan
 			if closestActiveRes.Err != nil { return nil, closestActiveRes.Err }
 			if len(closestActiveRes.Contacts) > 0 {
-				closestActiveDistance = closestActiveRes.Contacts[0].NodeID.Xor(id).PrefixLen()
+				closestActiveDistance = 159 - closestActiveRes.Contacts[0].NodeID.Xor(id).PrefixLen()
 			}
 			fmt.Println("closest active distance")
 			fmt.Println(closestActiveDistance)
@@ -767,7 +767,7 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 			// fmt.Println("result msg contacts")
 			// fmt.Println(resultMsg.ResultContacts)
 			for _, contact := range resultMsg.ResultContacts {
-				currDistance := contact.NodeID.Xor(key).PrefixLen()
+				currDistance := 159 - contact.NodeID.Xor(key).PrefixLen()
 				if currDistance < minDistance {
 					minDistance = currDistance
 				}
@@ -779,7 +779,7 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 			// fmt.Println("closestActiveRes")
 			// fmt.Println(closestActiveRes)
 			if len(closestActiveRes.Contacts) > 0 {
-				closestActiveDistance = closestActiveRes.Contacts[0].NodeID.Xor(key).PrefixLen()
+				closestActiveDistance = 159 - closestActiveRes.Contacts[0].NodeID.Xor(key).PrefixLen()
 			}
 			// fmt.Println("closest active distance")
 			// fmt.Println(closestActiveDistance)
@@ -889,7 +889,7 @@ func (k *Kademlia) Merge(l []Contact, r []Contact, target ID) []Contact {
 		if len(r) == 0 {
 			return append(ret, l...)
 		}
-		if l[0].NodeID.Xor(target).PrefixLen() <= r[0].NodeID.Xor(target).PrefixLen() {
+		if (159 - l[0].NodeID.Xor(target).PrefixLen()) <= (159 - r[0].NodeID.Xor(target).PrefixLen()) {
 			ret = append(ret, l[0])
 			l = l[1:]
 		} else {
