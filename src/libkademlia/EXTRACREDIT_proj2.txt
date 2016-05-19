@@ -1,0 +1,2 @@
+We implemented the function TestItFindNode in proj1_test.go for extra credit.
+The description of how the function works is in comments with the code. 
