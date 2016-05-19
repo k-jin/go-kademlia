@@ -11,8 +11,8 @@ import (
 	"net/rpc"
 	"strconv"
 	"time"
-	"os"
-	"bufio"
+	// "os"
+	// "bufio"
 )
 
 const (
@@ -559,10 +559,10 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			// fmt.Println("result msg contacts")
 			// fmt.Println(resultMsg.ResultContacts)
 			for _, contact := range resultMsg.ResultContacts {
-				fmt.Print("distance from ", contact.NodeID)
-				fmt.Print(" to ", id, " is ")
+				// fmt.Print("distance from ", contact.NodeID)
+				// fmt.Print(" to ", id, " is ")
 				currDistance := 159 - contact.NodeID.Xor(id).PrefixLen()
-				fmt.Println(currDistance)
+				// fmt.Println(currDistance)
 				if currDistance < minDistance {
 					minDistance = currDistance
 				}
@@ -572,9 +572,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			closestActiveRes := <- k.ShortlistResChan
 			if closestActiveRes.Err != nil { return nil, closestActiveRes.Err }
 			if len(closestActiveRes.Contacts) > 0 {
-
-				closestActiveDistance = 159 - closestActiveRes.Contacts[0].NodeID.Xor(id).PrefixLen()
-
+				closestShortlistDistance = 159 - closestActiveRes.Contacts[0].NodeID.Xor(id).PrefixLen()
 			}
 
 			closestUncheckedReq := ShortlistMsg{"get", false, nil, nil}
@@ -587,14 +585,14 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 					closestShortlistDistance = currDistance
 				}
 			}
-			fmt.Println("closest shortlist distance")
-			fmt.Println(closestShortlistDistance)
+			// fmt.Println("closest shortlist distance")
+			// fmt.Println(closestShortlistDistance)
 
-			fmt.Println("minDistance")
-			fmt.Println(minDistance)
+			// fmt.Println("minDistance")
+			// fmt.Println(minDistance)
 			//TODO verify distance is working properly, figure out what's going on for distance
 			if minDistance <= closestShortlistDistance {
-				fmt.Println("ENTERING minDistance < closestActiveDistance")
+				// fmt.Println("ENTERING minDistance < closestActiveDistance")
 				// add result 20 nodes to unchecked
 				addUncheckedReq := ShortlistMsg{"add", false, resultMsg.ResultContacts, nil}
 				k.ShortlistReqChan <- addUncheckedReq
@@ -606,8 +604,8 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 				addActiveRes := <- k.ShortlistResChan
 				if addActiveRes.Err != nil { return nil, addActiveRes.Err }
 				if len(addActiveRes.Contacts) == 20 {
-					fmt.Println("full active shortlist")
-					fmt.Println(addActiveRes.Contacts)
+					// fmt.Println("full active shortlist")
+					// fmt.Println(addActiveRes.Contacts)
 					return addActiveRes.Contacts, nil
 				}
 			} else {
@@ -618,7 +616,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			cycleOver := false
 			noCloser := false
 			if time.Now().Sub(startTime) >= 300 * time.Millisecond {
-				fmt.Println("timeout")
+				// fmt.Println("timeout")
 				cycleOver = true
 			} else {
 				cycleOver = true
@@ -635,17 +633,17 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 				}
 			}
 			if cycleOver {
-				fmt.Println("NoCloser: ", noCloser)
-				fmt.Print("Press 'Enter' to continue...")
-				bufio.NewReader(os.Stdin).ReadBytes('\n')
-				fmt.Println("=================================================")
+				// fmt.Println("NoCloser: ", noCloser)
+				// fmt.Print("Press 'Enter' to continue...")
+				// bufio.NewReader(os.Stdin).ReadBytes('\n')
+				// fmt.Println("=================================================")
 				if noCloser {
 					getReq := ShortlistMsg{"get", true, nil, nil}
 					k.ShortlistReqChan <- getReq
 					getRes := <- k.ShortlistResChan
 					if getRes.Err != nil { return nil, getRes.Err }
-					fmt.Println("no more closer")
-					fmt.Println(getRes.Contacts)
+					// fmt.Println("no more closer")
+					// fmt.Println(getRes.Contacts)
 					return getRes.Contacts, nil
 				} else {
 					fmt.Println("new cycle")
@@ -662,8 +660,8 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 						k.ShortlistReqChan <- getReq
 						getRes := <- k.ShortlistResChan
 						if getRes.Err != nil { return nil, getRes.Err }
-						fmt.Println("checked all nodes")
-						fmt.Println(getRes.Contacts)
+						// fmt.Println("checked all nodes")
+						// fmt.Println(getRes.Contacts)
 						return getRes.Contacts, nil
 					}
 					// initialize time for timer
@@ -691,6 +689,7 @@ func (k *Kademlia) DoIterativeStore(key ID, value []byte) ([]Contact, error) {
 			storedContacts = append(storedContacts, contact)
 		}
 	}
+	fmt.Println("DoItStore", storedContacts)
 	return storedContacts, nil
 
 
@@ -792,7 +791,7 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 			// fmt.Println("closestActiveRes")
 			// fmt.Println(closestActiveRes)
 			if len(closestActiveRes.Contacts) > 0 {
-				closestActiveDistance = 159 - closestActiveRes.Contacts[0].NodeID.Xor(key).PrefixLen()
+				closestShortlistDistance = 159 - closestActiveRes.Contacts[0].NodeID.Xor(key).PrefixLen()
 
 			}
 			closestUncheckedReq := ShortlistMsg{"get", false, nil, nil}
@@ -961,7 +960,7 @@ func (k *Kademlia) ShortlistManager(target ID) {
 				if req.Request == "add" {
 					// add to active or to unchecked slice
 					if req.Active {
-						fmt.Println("ADDING to active_slice: before")
+						// fmt.Println("ADDING to active_slice: before")
 						// fmt.Println(active_slice)
 						for _, contact:= range res.Contacts {
 							if !ContactExists(contact, active_slice){
@@ -972,13 +971,13 @@ func (k *Kademlia) ShortlistManager(target ID) {
 						// fmt.Println(active_slice)
 						active_slice = k.MergeSort(active_slice, target)
 						// fmt.Println("sorted")
-						fmt.Println(active_slice)
+						// fmt.Println(active_slice)
 						if len(active_slice) >= 20 {
 							active_slice = active_slice[:20]
 						} 
 						res.Contacts = active_slice	
 					} else {
-						fmt.Println("ADDING to unchecked_slice: before")
+						// fmt.Println("ADDING to unchecked_slice: before")
 						// fmt.Println(unchecked_slice)
 						for _, contact:= range res.Contacts {
 							if contact.Host != nil {
@@ -1000,21 +999,21 @@ func (k *Kademlia) ShortlistManager(target ID) {
 							unchecked_slice = unchecked_slice[:(20-len(active_slice) + 1)]
 						}
 						// fmt.Println("truncated")
-						fmt.Println(unchecked_slice)
+						// fmt.Println(unchecked_slice)
 						res.Contacts = unchecked_slice
 					}
 				} else if req.Request == "get" {
 					if req.Active {
-						fmt.Println("GETTING active slice")
-						fmt.Println(active_slice)
+						// fmt.Println("GETTING active slice")
+						// fmt.Println(active_slice)
 						res.Contacts = active_slice
 					} else {
-						fmt.Println("GETTING unchecked contacts")
-						fmt.Println(unchecked_slice)
+						// fmt.Println("GETTING unchecked contacts")
+						// fmt.Println(unchecked_slice)
 						sliceBound := Min(3, len(unchecked_slice))
 						res.Contacts = unchecked_slice[:sliceBound]
 						unchecked_slice = unchecked_slice[sliceBound:]
-						fmt.Println(unchecked_slice)
+						// fmt.Println(unchecked_slice)
 					}
 				} else {
 					res.Err = &CommandFailed{"Improper request"}
