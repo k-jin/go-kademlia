@@ -582,7 +582,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			closestUncheckedRes := <- k.ShortlistResChan
 			if closestUncheckedRes.Err != nil { return nil, closestUncheckedRes.Err }
 			if len(closestUncheckedRes.Contacts) > 0 {
-				currDistance := closestUncheckedRes.Contacts[0].NodeID.Xor(id).PrefixLen()
+				currDistance := 159 - closestUncheckedRes.Contacts[0].NodeID.Xor(id).PrefixLen()
 				if currDistance < closestShortlistDistance {
 					closestShortlistDistance = currDistance
 				}
