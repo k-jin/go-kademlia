@@ -1169,11 +1169,17 @@ func (k *Kademlia) DoFindValueWrapper(contact Contact, target ID, resChan chan D
 }
 
 // For project 3!
-func (k *Kademlia) Vanish(VDO ID, data []byte, numberKeys byte,
+func (k *Kademlia) Vanish(VDOID ID, data []byte, numberKeys byte,
 	threshold byte, timeoutSeconds int) (vdo VanashingDataObject) {
 	
 	vdo = k.VanishData(data, numberKeys, threshold, timeoutSeconds)
 
+	vdoReq := VDOTableMsg{"add", VDOID, vdo, nil}
+	k.VDOReqChan <- vdoReq
+	vdoRes := <- k.VDOResChan
+	 if vdoRes.Err != nil {
+	 	fmt.Println(vdoRes.Err)
+	 } 
 	return
 }
 
