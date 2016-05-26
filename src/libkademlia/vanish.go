@@ -7,7 +7,8 @@ import (
 	"io"
 	mathrand "math/rand"
 	"time"
-	//"sss"
+	"sss"
+	"fmt"
 )
 
 type VanashingDataObject struct {
@@ -74,9 +75,57 @@ func decrypt(key []byte, ciphertext []byte) (text []byte) {
 
 func (k *Kademlia) VanishData(data []byte, numberKeys byte,
 	threshold byte, timeoutSeconds int) (vdo VanashingDataObject) {
+
+	testVanishStoredNodes := make([]Contact, 0)
+	cryptoKeyK := GenerateRandomCryptoKey()
+	cipherTextC := encrypt(cryptoKeyK, data)
+	splitKey, err := sss.Split(numberKeys, threshold, cipherTextC)
+	if err != nil {
+		fmt.Println("sss.Split messed up", err) 
+		return
+	}
+	accessKeyL := GenerateRandomAccessKey()
+	storeIds := CalculateSharedKeyLocations(accessKeyL, int64(numberKeys))
+	
+	allSlice := make([][]byte, 0)
+	ctr := 0
+	for k,v := range splitKey {
+		allSlice[ctr] = append([]byte{k}, v...)
+	}
+
+	for i,id := range storeIds {
+		storedAt, err := k.DoIterativeStore(id, allSlice[i])
+		if err != nil {
+			fmt.Println("DoIterativeStore messed up ", id, allSlice[i])
+			return
+		}
+		testVanishStoredNodes = append(testVanishStoredNodes, storedAt...)
+	}
+	fmt.Println(cryptoKeyK)
+	fmt.Println(cipherTextC)
+	fmt.Println(testVanishStoredNodes)
+	vdo = VanashingDataObject{accessKeyL, cipherTextC, numberKeys, threshold}
+	fmt.Println(vdo)
+
 	return
 }
 
+// Implement UnvashishData. This is basically the same as the previous function, but in reverse. Use vdo.AccessKey and CalculateSharedKeyLocations to search for at least vdo.Threshold keys in the DHT. Use sss.Combine to recreate the key, K, and use decrypt to unencrypt vdo.Ciphertext.
 func (k *Kademlia) UnvanishData(vdo VanashingDataObject) (data []byte) {
-	return nil
+	storeIds := CalculateSharedKeyLocations(vdo.AccessKey, int64(vdo.Threshold))
+	keyParts := make(map[byte][]byte)
+	for _, id := range storeIds {
+		keyPart, err := k.DoIterativeFindValue(id)
+		if err != nil {
+			fmt.Println("Key not found at node ", id)
+		}
+		if len(keyParts) < int(vdo.Threshold) {
+			keyParts[keyPart[0]] = keyPart[1:]
+		} else {
+			break
+		}
+	}
+	key := sss.Combine(keyParts)
+	data = decrypt(key, vdo.Ciphertext)
+	return
 }

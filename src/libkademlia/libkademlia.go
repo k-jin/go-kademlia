@@ -1184,8 +1184,14 @@ func (k *Kademlia) Vanish(VDOID ID, data []byte, numberKeys byte,
 }
 
 // Implement UnvashishData. This is basically the same as the previous function, but in reverse. Use vdo.AccessKey and CalculateSharedKeyLocations to search for at least vdo.Threshold keys in the DHT. Use sss.Combine to recreate the key, K, and use decrypt to unencrypt vdo.Ciphertext.
-func (k *Kademlia) Unvanish(searchKey ID, VDO ID) (data []byte) {
-
-
-	return nil
+func (k *Kademlia) Unvanish(searchKey ID, VDOID ID) (data []byte) {
+	vdoReq := VDOTableMsg{"get", VDOID, VanashingDataObject{}, nil}
+	k.VDOReqChan <- vdoReq
+	vdoRes := <- k.VDOResChan
+	if vdoRes.Err != nil {
+	  fmt.Println(vdoRes.Err)
+	} 
+	vdo := vdoRes.Value
+	data = k.UnvanishData(vdo)
+	return
 }
