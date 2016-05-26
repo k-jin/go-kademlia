@@ -1133,7 +1133,7 @@ func (k *Kademlia) DoFindValueWrapper(contact Contact, target ID, resChan chan D
 }
 
 // For project 3!
-func (k *Kademlia) Vanish(data []byte, numberKeys byte,
+func (k *Kademlia) Vanish(VDO ID, data []byte, numberKeys byte,
 	threshold byte, timeoutSeconds int) (vdo VanashingDataObject) {
 	testVanishStoredNodes := make([]Contact, 0)
 	cryptoKeyK := GenerateRandomCryptoKey()
@@ -1168,6 +1168,9 @@ func (k *Kademlia) Vanish(data []byte, numberKeys byte,
 	return
 }
 
-func (k *Kademlia) Unvanish(searchKey ID) (data []byte) {
+// Implement UnvashishData. This is basically the same as the previous function, but in reverse. Use vdo.AccessKey and CalculateSharedKeyLocations to search for at least vdo.Threshold keys in the DHT. Use sss.Combine to recreate the key, K, and use decrypt to unencrypt vdo.Ciphertext.
+func (k *Kademlia) Unvanish(searchKey ID, VDO ID) (data []byte) {
+
+	
 	return nil
 }
