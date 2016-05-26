@@ -32,6 +32,8 @@ type Kademlia struct {
 	VTableResChan	chan VTableMsg
 	ShortlistReqChan chan ShortlistMsg
 	ShortlistResChan chan ShortlistMsg
+	VDOReqChan chan VDOTableMsg
+	VDOResChan chan VDOTableMsg
 }
 
 // Request can be get, add, update, or delete
@@ -47,6 +49,14 @@ type VTableMsg struct {
 	Request 	string
 	Key 		ID
 	Value 		[]byte
+	Err 		error
+}
+
+// Request can be get, add, update, or delete
+type VDOTableMsg struct {
+	Request 	string
+	Key 		ID
+	Value 		VanashingDataObject
 	Err 		error
 }
 
@@ -143,6 +153,29 @@ func (k *Kademlia) VTableManager() {
 	}
 }
 
+func (k *Kademlia) VDOTableManager() {
+	VDOTable := make(map[ID]VanashingDataObject)
+	for {
+		req := <- k.VDOReqChan
+		var res VDOTableMsg
+		res = req
+		res.Err = nil
+		switch req.Request {
+		case "get":
+			res.Value = VDOTable[req.Key]
+		case "update":
+			VDOTable[req.Key] = req.Value
+		case "add":
+			VDOTable[req.Key] = req.Value
+		case "delete":
+			delete(VDOTable, res.Key)
+		default:
+			res.Err = &CommandFailed{"Invalid operation"}
+		}
+		k.VDOResChan <- res
+	}
+}
+
 
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k := new(Kademlia)
@@ -156,6 +189,8 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.VTableResChan = make(chan VTableMsg)
 	k.ShortlistReqChan = make(chan ShortlistMsg)
 	k.ShortlistResChan = make(chan ShortlistMsg)
+	k.VDOReqChan = make(chan VDOTableMsg)
+	k.VDOResChan = make(chan VDOTableMsg)
 
 	// Set up RPC server
 	// NOTE: KademliaRPC is just a wrapper around Kademlia. This type includes
@@ -191,6 +226,7 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.SelfContact = Contact{k.NodeID, host, uint16(port_int)}
 	go k.KBucketsManager()
 	go k.VTableManager()
+	go k.VDOTableManager()
 	return k
 }
 
