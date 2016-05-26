@@ -196,5 +196,20 @@ type GetVDOResult struct {
 
 func (k *KademliaRPC) GetVDO(req GetVDORequest, res *GetVDOResult) error {
 	// TODO: Implement.
+	err := k.kademlia.Update(&req.Sender)
+	if err != nil {
+		return &CommandFailed{
+			"Update failed in GetVDO " }
+	}
+	res.MsgID = CopyID(req.MsgID)
+
+	vdoReq := VDOTableMsg{"get", req.VdoID, VanashingDataObject{}, nil}
+	k.kademlia.VDOReqChan <- vdoReq
+	vdoRes := <- k.kademlia.VDOResChan
+	if vdoRes.Err != nil {
+	  fmt.Println(vdoRes.Err)
+	  return vdoRes.Err
+	} 
+	res.VDO = vdoRes.Value
 	return nil
 }
