@@ -383,7 +383,14 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 		}
 		numberKeys,_ := strconv.Atoi(toks[3])
 		threshold,_ := strconv.Atoi(toks[4])
-		value := k.Vanish([]byte(toks[2]), byte(numberKeys), byte(threshold), 120)
+		vdokey, err := libkademlia.IDFromString(toks[1])
+		
+		if err!= nil {
+			response = fmt.Sprintf("vdokey messed up")
+			return
+		}
+		value := k.Vanish(vdokey,[]byte(toks[2]), byte(numberKeys), byte(threshold), 120)
+		
 		response = fmt.Sprintf("OK: Returned VDO %s", value)
 		
 	case toks[0] == "unvanish":
@@ -396,7 +403,12 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 			response = "ERR: Provided an invalid key (" + toks[1] + ")"
 			return
 		}
-		value := k.Unvanish(key)
+		vdokey, err2 := libkademlia.IDFromString(toks[2])
+		if err2 != nil {
+			response = "ERR: Provided an invalid vdo key (" + toks[2] + ")"
+			return
+		}
+		value := k.Unvanish(key,vdokey)
 		response = fmt.Sprintf("OK: Unvanish data %s", value)
 		
 	default:
