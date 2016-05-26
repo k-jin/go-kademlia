@@ -376,6 +376,33 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 			response = fmt.Sprintf("OK: Found value %s", value)
 		}
 
+	case toks[0] == "vanish":
+		if len(toks) != 5 {
+			response = "usage: vanish [VDO ID] [data] [numberKeys] [threshold]"
+			return
+		}
+		value, err := k.Vanish(data, numberKeys, threshold, 120)
+		if err != nil {
+			response = fmt.Sprintf("ERR: %s", err)
+		} else {
+			response = fmt.Sprintf("OK: Returned VDO %s", value)
+		}
+	case toks[0] == "unvanish":
+		if len(toks) != 3 {
+			response = "usage: unvanish [Node ID] [VDO ID]"
+			return
+		}
+		key, err := libkademlia.IDFromString(toks[1])
+		if err != nil {
+			response = "ERR: Provided an invalid key (" + toks[1] + ")"
+			return
+		}
+		value, err := k.Unvanish(key)
+		if err != nil {
+			response = fmt.Sprintf("ERR: %s", err)
+		} else {
+			response = fmt.Sprintf("OK: Unvanish data %s", value)
+		}
 	default:
 		response = "ERR: Unknown command"
 	}
