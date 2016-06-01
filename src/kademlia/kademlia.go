@@ -386,6 +386,8 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 		vdokey, err := libkademlia.IDFromString(toks[1])
 		
 		if err!= nil {
+
+			fmt.Println(err)
 			response = fmt.Sprintf("vdokey messed up")
 			return
 		}

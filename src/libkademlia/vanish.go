@@ -87,10 +87,19 @@ func (k *Kademlia) VanishData(data []byte, numberKeys byte,
 	accessKeyL := GenerateRandomAccessKey()
 	storeIds := CalculateSharedKeyLocations(accessKeyL, int64(numberKeys))
 	
-	allSlice := make([][]byte, 0)
+	// allSlice := make([][]byte, 0)
+	allSlice := [][]byte{}
+
+
 	ctr := 0
 	for k,v := range splitKey {
-		allSlice[ctr] = append([]byte{k}, v...)
+		keyVal := append([]byte{k}, v...)
+		allSlice= append(allSlice, keyVal)
+		// ctr = ctr + 1
+		fmt.Println("Ctr is ", ctr)
+		fmt.Println("k is ",k)
+		fmt.Println("v is ", v)
+
 	}
 
 	for i,id := range storeIds {
@@ -116,16 +125,27 @@ func (k *Kademlia) UnvanishData(vdo VanashingDataObject) (data []byte) {
 	keyParts := make(map[byte][]byte)
 	for _, id := range storeIds {
 		keyPart, err := k.DoIterativeFindValue(id)
-		if err != nil {
+		fmt.Println("Keypart from DoItFind ",keyPart)
+		fmt.Println("Keyparts Map ", keyParts)
+		if err != nil || len(keyPart)==0 {
+			fmt.Println("Error is ", err)
 			fmt.Println("Key not found at node ", id)
-		}
-		if len(keyParts) < int(vdo.Threshold) {
+		} else if len(keyParts) < int(vdo.Threshold) {
+			fmt.Println(keyPart)
+			// fmt.Println(keyPart[0])
+			// fmt.Println(keyPart[1:])
 			keyParts[keyPart[0]] = keyPart[1:]
 		} else {
 			break
 		}
 	}
+	if len(keyParts) < int(vdo.Threshold) {
+		fmt.Println("keyParts is not big enough to Combine")
+		return nil
+	}
+
 	key := sss.Combine(keyParts)
+	fmt.Println("Key sent to decrypt is ",key)
 	data = decrypt(key, vdo.Ciphertext)
 	return
 }
