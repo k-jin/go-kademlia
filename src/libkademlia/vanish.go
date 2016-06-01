@@ -79,7 +79,7 @@ func (k *Kademlia) VanishData(data []byte, numberKeys byte,
 	testVanishStoredNodes := make([]Contact, 0)
 	cryptoKeyK := GenerateRandomCryptoKey()
 	cipherTextC := encrypt(cryptoKeyK, data)
-	splitKey, err := sss.Split(numberKeys, threshold, cipherTextC)
+	splitKey, err := sss.Split(numberKeys, threshold, cryptoKeyK)
 	if err != nil {
 		fmt.Println("sss.Split messed up", err) 
 		return
@@ -122,6 +122,7 @@ func (k *Kademlia) VanishData(data []byte, numberKeys byte,
 // Implement UnvashishData. This is basically the same as the previous function, but in reverse. Use vdo.AccessKey and CalculateSharedKeyLocations to search for at least vdo.Threshold keys in the DHT. Use sss.Combine to recreate the key, K, and use decrypt to unencrypt vdo.Ciphertext.
 func (k *Kademlia) UnvanishData(vdo VanashingDataObject) (data []byte) {
 	storeIds := CalculateSharedKeyLocations(vdo.AccessKey, int64(vdo.Threshold))
+	fmt.Println("storedIDs UNVANISH: ", storeIds)
 	keyParts := make(map[byte][]byte)
 	for _, id := range storeIds {
 		keyPart, err := k.DoIterativeFindValue(id)
@@ -144,6 +145,8 @@ func (k *Kademlia) UnvanishData(vdo VanashingDataObject) (data []byte) {
 		return nil
 	}
 
+	fmt.Println("vdo.Threshold is  ",int(vdo.Threshold))
+	fmt.Println("Keyparts is ",keyParts)
 	key := sss.Combine(keyParts)
 	fmt.Println("Key sent to decrypt is ",key)
 	data = decrypt(key, vdo.Ciphertext)

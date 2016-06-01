@@ -162,11 +162,16 @@ func (k *Kademlia) VDOTableManager() {
 		res.Err = nil
 		switch req.Request {
 		case "get":
+			fmt.Println("ENTIRE VDO TABLE GET", VDOTable)
 			res.Value = VDOTable[req.Key]
+			fmt.Println("GET VDO VDOTable[req.Key]", VDOTable[req.Key])
+			fmt.Println("res.Value", res.Value)
 		case "update":
 			VDOTable[req.Key] = req.Value
 		case "add":
 			VDOTable[req.Key] = req.Value
+			fmt.Println("ADD VDO", VDOTable[req.Key])
+			fmt.Println("ENTIRE VDO TABLE ADD", VDOTable)
 		case "delete":
 			delete(VDOTable, res.Key)
 		default:
@@ -1185,13 +1190,39 @@ func (k *Kademlia) Vanish(VDOID ID, data []byte, numberKeys byte,
 
 // Implement UnvashishData. This is basically the same as the previous function, but in reverse. Use vdo.AccessKey and CalculateSharedKeyLocations to search for at least vdo.Threshold keys in the DHT. Use sss.Combine to recreate the key, K, and use decrypt to unencrypt vdo.Ciphertext.
 func (k *Kademlia) Unvanish(searchKey ID, VDOID ID) (data []byte) {
-	vdoReq := VDOTableMsg{"get", VDOID, VanashingDataObject{}, nil}
-	k.VDOReqChan <- vdoReq
-	vdoRes := <- k.VDOResChan
-	if vdoRes.Err != nil {
-	  fmt.Println(vdoRes.Err)
-	} 
-	vdo := vdoRes.Value
-	data = k.UnvanishData(vdo)
-	return
+	contacts, nodeErr := k.DoIterativeFindNode(searchKey)
+	if nodeErr != nil {
+		fmt.Println("DoIterativeFindNode in Unvanish died :", nodeErr)
+		return nil
+	}
+	foundContact := contacts[0]
+	host := foundContact.Host
+	port := foundContact.Port
+	address := fmt.Sprintf("%s:%v", host.String(), port)
+	portStr := fmt.Sprintf("%v", port)
+	client, err := rpc.DialHTTPPath("tcp", address, rpc.DefaultRPCPath + portStr)
+	if err != nil {
+		log.Printf("DialHTTPPath err in UnVanish", err)
+		return nil
+	}
+
+	rpcReq := GetVDORequest{k.SelfContact, VDOID, NewRandomID()}
+	var rpcRes GetVDOResult
+	err = client.Call("KademliaRPC.GetVDO", &rpcReq, &rpcRes)
+	if err != nil {
+		log.Printf("client.Call err in UnVanish", err)
+		return nil
+	} else {
+		vdo := rpcRes.VDO
+		fmt.Println("UnVanish VDO", vdo)
+		data = k.UnvanishData(vdo)
+		return
+	}
+	// vdoReq := VDOTableMsg{"get", VDOID, VanashingDataObject{}, nil}
+	// k.VDOReqChan <- vdoReq
+	// vdoRes := <- k.VDOResChan
+	// if vdoRes.Err != nil {
+	//   fmt.Println(vdoRes.Err)
+	// } 
+	// vdo := vdoRes.Value
 }
